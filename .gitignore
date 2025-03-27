@@ -1,0 +1,7 @@
+.windsurfrules
+.cursorrules
+.xcodeproj/
+DerivedData/
+**/*.xcodeproj/
+**/*.xcworkspace/
+**/*.build/
