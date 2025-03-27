@@ -25,6 +25,9 @@ jobs:
     - name: Install D-Bus dependencies (Ubuntu)
       if: runner.os == 'Linux'
       run: |
+        # Fix GPG key issue
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys EF80A866B47A981F
+        # Update and install D-Bus
         sudo apt-get update
         sudo apt-get install -y libdbus-1-dev dbus
         # Start D-Bus session for testing
