@@ -15,7 +15,7 @@ public enum DBusExamples {
             let dbus = try DBusAsync(busType: .system)
             
             // Call the ListNames method on the D-Bus service
-            let result = try await dbus.callMethod(
+            let result = try await dbus.call(
                 destination: "org.freedesktop.DBus",
                 path: "/org/freedesktop/DBus",
                 interface: "org.freedesktop.DBus",
@@ -65,7 +65,7 @@ public enum DBusExamples {
             let dbus = try DBusAsync(busType: .session)
             
             // Call GetConnectionUnixProcessID to get the PID of a connection
-            let result = try await dbus.callMethod(
+            let result = try await dbus.call(
                 destination: "org.freedesktop.DBus",
                 path: "/org/freedesktop/DBus",
                 interface: "org.freedesktop.DBus",

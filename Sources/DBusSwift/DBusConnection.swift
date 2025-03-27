@@ -34,7 +34,7 @@ public enum DBusBusType: Int32 {
 }
 
 /// Represents a connection to a D-Bus bus
-public final class DBusConnection {
+public final class DBusConnection: @unchecked Sendable {
     private var connection: OpaquePointer?
     private var busType: DBusBusType
     

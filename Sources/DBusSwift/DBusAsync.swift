@@ -16,6 +16,12 @@ public actor DBusAsync {
         self.connection = try DBusConnection(busType: busType)
     }
     
+    /// Returns the underlying DBusConnection
+    /// - Returns: The DBusConnection instance
+    public func getConnection() -> DBusConnection {
+        return connection
+    }
+    
     /// Calls a method on the bus and returns the reply
     /// - Parameters:
     ///   - destination: The bus name of the service to call
@@ -28,7 +34,7 @@ public actor DBusAsync {
     ///   - timeoutMS: Timeout in milliseconds, -1 for default, 0 for no timeout
     /// - Returns: The reply arguments
     /// - Throws: DBusConnectionError if the call fails
-    public func callMethod(
+    public func call(
         destination: String,
         path: String,
         interface: String,
