@@ -3,9 +3,6 @@ import PackageDescription
 
 let package = Package(
     name: "DBusSwift",
-    platforms: [
-        .macOS(.v14),
-    ],
     products: [
         .library(
             name: "DBusSwift",
@@ -20,8 +17,7 @@ let package = Package(
             name: "CDBus",
             pkgConfig: "dbus-1",
             providers: [
-                .apt(["libdbus-1-dev"]),
-                .brew(["dbus"])
+                .apt(["libdbus-1-dev"])
             ]),
         .testTarget(
             name: "DBusSwiftTests",

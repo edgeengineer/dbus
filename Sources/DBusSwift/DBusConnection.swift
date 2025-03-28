@@ -176,4 +176,30 @@ public final class DBusConnection: @unchecked Sendable {
             throw DBusConnectionError.connectionFailed(errorMessage)
         }
     }
+    
+    /// Request a name on the bus
+    /// - Parameter name: The name to request
+    /// - Parameter flags: Flags controlling the name request behavior (default: 0)
+    /// - Returns: A result code indicating the outcome of the request
+    /// - Throws: DBusConnectionError if the request fails
+    public func requestName(name: String, flags: UInt32 = 0) throws -> Int32 {
+        guard let connection = connection else {
+            throw DBusConnectionError.connectionFailed("No active connection")
+        }
+        
+        var cError = CDBus.DBusError()
+        dbus_error_init(&cError)
+        
+        let result = name.withCString { cName in
+            dbus_bus_request_name(connection, cName, flags, &cError)
+        }
+        
+        if dbus_error_is_set(&cError) != 0 {
+            let errorMessage = String(cString: cError.message)
+            dbus_error_free(&cError)
+            throw DBusConnectionError.connectionFailed(errorMessage)
+        }
+        
+        return result
+    }
 }

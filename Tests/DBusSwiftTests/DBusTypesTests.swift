@@ -4,6 +4,7 @@ import Testing
 /// Tests for the DBusType enum and related functionality.
 @Suite("DBusTypes Tests")
 struct DBusTypesTests {
+    #if canImport(CDBus)
     /// Tests the string value conversion for DBusType enum.
     @Test("DBusType String Value")
     func testDBusTypeStringValue() throws {
@@ -96,4 +97,5 @@ struct DBusTypesTests {
         #expect(DBusMessageType.error.toCType() == DBusMessageType.error.rawValue)
         #expect(DBusMessageType.signal.toCType() == DBusMessageType.signal.rawValue)
     }
+    #endif
 }

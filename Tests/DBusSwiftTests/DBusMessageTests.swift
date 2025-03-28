@@ -4,13 +4,10 @@ import Testing
 /// Tests for the DBusMessage class and related functionality.
 @Suite("DBusMessage Tests")
 struct DBusMessageTests {
-    #if os(Linux) || (os(macOS) && canImport(CDBus))
+    #if canImport(CDBus)
     /// Tests the creation of different message types.
     @Test("Message Type Creation")
     func testMessageTypeCreation() throws {
-        #if os(macOS)
-        // On macOS, we just verify the API compiles
-        #else
         // Test method call creation
         let methodCall = DBusMessage(type: .methodCall)
         let methodCallType = methodCall.getMessageType()
@@ -30,15 +27,11 @@ struct DBusMessageTests {
         let errorMsg = DBusMessage(type: .error)
         let errorType = errorMsg.getMessageType()
         #expect(errorType == .error)
-        #endif
     }
     
     /// Tests the creation of method call messages with specific parameters.
     @Test("Method Call Creation")
     func testMethodCallCreation() throws {
-        #if os(macOS)
-        // On macOS, we just verify the API compiles
-        #else
         let msg = DBusMessage.createMethodCall(
             destination: "org.freedesktop.DBus",
             path: "/org/freedesktop/DBus",
@@ -54,15 +47,11 @@ struct DBusMessageTests {
         #expect(msg.getPath() == "/org/freedesktop/DBus")
         #expect(msg.getInterface() == "org.freedesktop.DBus")
         #expect(msg.getMember() == "ListNames")
-        #endif
     }
     
     /// Tests the creation of signal messages with specific parameters.
     @Test("Signal Creation")
     func testSignalCreation() throws {
-        #if os(macOS)
-        // On macOS, we just verify the API compiles
-        #else
         let msg = DBusMessage.createSignal(
             path: "/org/example/Path",
             interface: "org.example.Interface",
@@ -76,15 +65,11 @@ struct DBusMessageTests {
         #expect(msg.getPath() == "/org/example/Path")
         #expect(msg.getInterface() == "org.example.Interface")
         #expect(msg.getMember() == "ExampleSignal")
-        #endif
     }
     
     /// Tests the message headers functionality.
     @Test("Message Headers")
     func testMessageHeaders() throws {
-        #if os(macOS)
-        // On macOS, we just verify the API compiles
-        #else
         let msg = DBusMessage.createMethodCall(
             destination: "org.freedesktop.DBus",
             path: "/org/freedesktop/DBus",
@@ -103,15 +88,11 @@ struct DBusMessageTests {
         // Set a sender
         msg.setSender("org.example.Sender")
         #expect(msg.getSender() == "org.example.Sender")
-        #endif
     }
     
     /// Tests appending arguments to a message.
     @Test("Argument Handling")
     func testArgumentHandling() throws {
-        #if os(macOS)
-        // On macOS, we just verify the API compiles
-        #else
         let msg = DBusMessage.createMethodCall(
             destination: "org.freedesktop.DBus",
             path: "/org/freedesktop/DBus",
@@ -124,14 +105,6 @@ struct DBusMessageTests {
         
         // Verify that arguments were appended correctly
         #expect(Bool(true), "Should be able to append arguments")
-        #endif
-    }
-    #else
-    // This test runs when D-Bus is not available on the platform
-    @Test("Skip on Non-Linux")
-    func testSkipOnNonLinux() {
-        // Skip tests on non-Linux platforms
-        #expect(Bool(true))
     }
     #endif
 }

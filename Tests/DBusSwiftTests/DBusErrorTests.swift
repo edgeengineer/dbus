@@ -4,6 +4,7 @@ import Testing
 /// Tests for the DBusError class and error handling functionality.
 @Suite("DBusError Tests")
 struct DBusErrorTests {
+    #if canImport(CDBus)
     /// Tests the basic functionality of the DBusError class.
     @Test("DBusError Basics")
     func testDBusErrorBasics() throws {
@@ -48,4 +49,5 @@ struct DBusErrorTests {
         #expect(error.name == nil)
         #expect(error.message == nil)
     }
+    #endif
 }

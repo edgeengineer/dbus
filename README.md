@@ -2,21 +2,19 @@
 
 
 [![Swift 6.0.0](https://img.shields.io/badge/Swift-6.0.0-orange.svg)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-macOS%20|%20Linux%20)](https://swift.org)
+[![Platforms](https://img.shields.io/badge/Platforms-Linux-green.svg)](https://swift.org)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![macOS](https://img.shields.io/github/actions/workflow/status/apache-edge/dbus/swift.yml?branch=main&label=macOS)](https://github.com/apache-edge/dbus/actions/workflows/swift.yml)
 [![Linux](https://img.shields.io/github/actions/workflow/status/apache-edge/dbus/swift.yml?branch=main&label=Linux)](https://github.com/apache-edge/dbus/actions/workflows/swift.yml)
 
 A Swift 6 wrapper for the D-Bus C library with support for modern Swift concurrency.
 
 ## Overview
 
-DBusSwift is a cross-platform Swift package that provides a Swift-friendly interface to D-Bus, a message bus system used for interprocess communication on Linux systems. This library enables Swift applications to communicate with system services and other applications on Linux.
+DBusSwift is a Swift package that provides a Swift-friendly interface to D-Bus, a message bus system used for interprocess communication on Linux systems. This library enables Swift applications to communicate with system services and other applications on Linux.
 
 ## Features
 
 - Modern Swift 6 API with full async/await support
-- Cross-platform compatibility (tested on Linux)
 - Proper memory management with automatic resource cleanup
 - Type-safe argument handling
 - Support for method calls, signals, and replies
@@ -26,32 +24,22 @@ DBusSwift is a cross-platform Swift package that provides a Swift-friendly inter
 ## Requirements
 
 - Swift 6.0 or later
-- On Linux: libdbus-1-dev package installed
+- libdbus-1-dev package installed
 
 ### Platform Support
 
-#### Linux
-D-Bus is natively supported on Linux and is the primary target platform for this library. All functionality is available on Linux systems with D-Bus installed.
+DBusSwift is designed specifically for Linux environments where D-Bus is natively available. D-Bus is a core component of Linux desktop environments and is not natively supported on other platforms.
 
-#### macOS
-macOS does not natively include D-Bus, but you can install it via Homebrew:
+#### Docker Testing
 
-```bash
-brew install dbus
-```
-
-After installation, you need to start the D-Bus daemon:
+For development and testing on non-Linux platforms, a Docker environment is provided:
 
 ```bash
-brew services start dbus
+# Run tests in Docker
+./run-tests-in-docker.sh
 ```
 
-Note that while the library can be built on macOS for development purposes, some functionality may be limited compared to Linux. The test suite automatically skips D-Bus-specific tests on macOS.
-
-Important: If you're working on this codebase on a macOS machine, you will need to install D-Bus and start the D-Bus daemon as described above or else the tests will fail.
-
-#### Other Platforms
-Other platforms like Windows are not currently supported for running D-Bus, but the package can still be built on these platforms for cross-compilation purposes.
+This will build a Docker container with all necessary dependencies and run the test suite in a Linux environment.
 
 ## Installation
 
@@ -122,64 +110,6 @@ if let services = result.first as? [String] {
     }
 }
 ```
-
-### Using Combine Extensions
-
-DBusSwift provides Combine extensions for reactive programming on Apple platforms. These extensions are conditionally compiled and only available when Combine is supported.
-
-You will need to install dbus with `homebrew install dbus` and run it in the background with `brew services start dbus`.
-
-```swift
-import DBusSwift
-import Combine
-
-// Create a publisher for D-Bus signals
-let connection = try DBusConnection(busType: .session)
-let signalPublisher = connection.signalPublisher(
-    interface: "org.freedesktop.DBus",
-    member: "NameOwnerChanged"
-)
-
-// Subscribe to signals
-var cancellables = Set<AnyCancellable>()
-signalPublisher
-    .sink(
-        receiveCompletion: { completion in
-            if case .failure(let error) = completion {
-                print("Error: \(error)")
-            }
-        },
-        receiveValue: { signal in
-            print("Received signal: \(signal)")
-        }
-    )
-    .store(in: &cancellables)
-
-// Create a publisher for method calls
-let dbusAsync = try DBusAsync(busType: .session)
-let callPublisher = await dbusAsync.callPublisher(
-    destination: "org.freedesktop.DBus",
-    path: "/org/freedesktop/DBus",
-    interface: "org.freedesktop.DBus",
-    method: "ListNames"
-)
-
-// Subscribe to method call results
-callPublisher
-    .sink(
-        receiveCompletion: { completion in
-            if case .failure(let error) = completion {
-                print("Error: \(error)")
-            }
-        },
-        receiveValue: { result in
-            print("Method call result: \(result)")
-        }
-    )
-    .store(in: &cancellables)
-```
-
-Note: While the Combine extensions are available on macOS, the actual D-Bus functionality requires a D-Bus daemon to be running. On macOS, you'll need to install D-Bus via Homebrew as described in the Platform Support section.
 
 ### Emitting a Signal
 
@@ -255,50 +185,12 @@ DBusSwift maps D-Bus types to Swift types as follows:
 
 ## Testing
 
-DBusSwift includes comprehensive integration tests using Swift Testing. The tests are conditionally compiled to run only on Linux platforms where D-Bus is available.
+DBusSwift includes comprehensive tests using Swift Testing. The tests are designed to run on Linux.
 
 ### Running Tests
 
 ```bash
 swift test
-```
-
-On non-Linux platforms, the tests will be skipped with appropriate messages.
-
-### macOS Testing Considerations
-
-When developing on macOS, you can:
-
-1. **Build and run the non-D-Bus parts of your tests**: The test suite is designed to skip D-Bus-specific tests on macOS.
-
-2. **Use a Linux VM or container**: For full testing, consider using a Linux virtual machine or container.
-
-3. **Use CI/CD**: The GitHub Actions workflow included with this package automatically tests on Linux platforms.
-
-### Writing Tests for D-Bus Applications
-
-When writing tests for your own applications that use DBusSwift, follow this pattern:
-
-```swift
-import Testing
-@testable import DBusSwift
-
-@Suite("Your D-Bus Tests")
-struct YourDBusTests {
-    #if os(Linux)
-    @Test("Test D-Bus Connection")
-    func testDBusConnection() throws {
-        let dbus = try DBusAsync(busType: .session)
-        // Your test code here
-        #expect(dbus != nil)
-    }
-    #else
-    @Test("Skip on Non-Linux")
-    func testSkipOnNonLinux() {
-        print("Skipping D-Bus tests on non-Linux platform")
-    }
-    #endif
-}
 ```
 
 ## License

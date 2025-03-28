@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest]
+        os: [ubuntu-22.04]
         swift: ["6.0.0"] # Use specific release version
 
     steps:
@@ -25,9 +25,8 @@ jobs:
       uses: actions/checkout@v4
 
     # === Linux Setup (Ubuntu 22.04) ===
-    # 2. (Linux Only) Ensure prerequisites are installed
-    - name: Ensure Prerequisites (Linux)
-      if: matrix.os == 'ubuntu-22.04'
+    # 2. Ensure prerequisites are installed
+    - name: Ensure Prerequisites
       run: |
         sudo apt-get update && sudo apt-get install -y \
           gpg dirmngr gzip curl wget \
@@ -37,10 +36,9 @@ jobs:
         echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
         echo "Prerequisites installed, GPG configured."
 
-    # 3. (Linux Only) Manually fetch, decompress, and import Swift keys
+    # 3. Manually fetch, decompress, and import Swift keys
     #    Workaround for setup-swift action's inability to handle gzipped keys from server.
-    - name: Manually Fetch and Import Swift Keys (Linux)
-      if: matrix.os == 'ubuntu-22.04'
+    - name: Manually Fetch and Import Swift Keys
       run: |
         echo "Manually downloading, decompressing, and importing Swift keys..."
         curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
@@ -53,18 +51,16 @@ jobs:
           exit 1
         fi
 
-    # 4. (Linux Only) Set up Swift using action, ignoring its internal GPG error
+    # 4. Set up Swift using action, ignoring its internal GPG error
     #    Relies on Step 3 having imported keys correctly. Bypasses internal check failure.
-    - name: Setup Swift (Linux - Ignoring Internal GPG Error)
-      if: matrix.os == 'ubuntu-22.04'
+    - name: Setup Swift (Ignoring Internal GPG Error)
       uses: swift-actions/setup-swift@v2
       continue-on-error: true # <<< ALLOW STEP TO "FAIL" INTERNALLY BUT CONTINUE WORKFLOW
       with:
         swift-version: ${{ matrix.swift }} # "6.0.0"
 
-    # 4.1 (Linux Only) Verify if Swift is available after setup-swift attempt
-    - name: Verify Swift Command Availability (Linux)
-      if: matrix.os == 'ubuntu-22.04'
+    # 4.1 Verify if Swift is available after setup-swift attempt
+    - name: Verify Swift Command Availability
       id: verify_swift # Give step an ID to check its outcome if needed later
       run: |
         if ! command -v swift &> /dev/null; then
@@ -75,41 +71,23 @@ jobs:
           swift --version
         fi
 
-    # === macOS Setup ===
-    # Use standard setup-swift on macOS (should work fine)
-    - name: Setup Swift (macOS)
-      if: matrix.os == 'macos-latest'
-      uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: ${{ matrix.swift }} # "6.0.0"
-
     # === Common Steps ===
     # 5. Verify Swift installation (redundant check, but harmless)
-    - name: Verify Swift installation (All OS)
+    - name: Verify Swift installation
       run: swift --version
 
     # 6. Install D-Bus dependencies
-    - name: Install D-Bus dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-22.04'
+    - name: Install D-Bus dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y libdbus-1-dev dbus
         eval $(dbus-launch --auto-syntax)
         echo "D-Bus dependencies installed and session launched."
-    - name: Install D-Bus (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install dbus
-        echo "D-Bus installed via Homebrew (service not started)."
 
     # 7. Build the Swift package
     - name: Build Package
       run: swift build -c release -v
 
     # 8. Run tests
-    - name: Run Tests (Linux)
-      if: matrix.os == 'ubuntu-22.04'
+    - name: Run Tests
       run: swift test -v
-    - name: Explain Skipped Tests (macOS)
-      if: matrix.os == 'macos-latest'
-      run: echo "Skipping tests on macOS as they may depend on a D-Bus session environment."

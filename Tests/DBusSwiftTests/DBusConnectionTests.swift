@@ -1,53 +1,3 @@
-#if os(macOS)
-import Testing
-
-/// Tests for the DBusConnection class and related functionality.
-/// On macOS, we skip these tests since D-Bus is primarily a Linux technology.
-@Suite("DBusConnection Tests")
-struct DBusConnectionTests {
-    /// Skip connection tests on macOS
-    @Test("Session Bus Connection")
-    func testSessionBusConnection() throws {
-        print("Note: Skipping D-Bus session connection test on macOS")
-        #expect(Bool(true))
-    }
-    
-    /// Skip system bus connection test on macOS
-    @Test("System Bus Connection")
-    func testSystemBusConnection() throws {
-        print("Note: Skipping D-Bus system connection test on macOS")
-        #expect(Bool(true))
-    }
-    
-    /// Skip name request test on macOS
-    @Test("Request Name")
-    func testRequestName() throws {
-        print("Note: Skipping D-Bus name request test on macOS")
-        #expect(Bool(true))
-    }
-    
-    /// Skip send with reply test on macOS
-    @Test("Send With Reply")
-    func testSendWithReply() throws {
-        print("Note: Skipping D-Bus send with reply test on macOS")
-        #expect(Bool(true))
-    }
-    
-    /// Skip direct connection test on macOS
-    @Test("Direct Connection")
-    func testDirectConnection() throws {
-        print("Note: Skipping D-Bus direct connection test on macOS")
-        #expect(Bool(true))
-    }
-    
-    /// Skip async test on macOS
-    @Test("DBus Async")
-    func testDBusAsync() async throws {
-        print("Note: Skipping D-Bus async test on macOS")
-        #expect(Bool(true))
-    }
-}
-#else
 import Testing
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -59,6 +9,7 @@ import Foundation
 /// Tests for the DBusConnection class and related functionality.
 @Suite("DBusConnection Tests")
 struct DBusConnectionTests {
+    #if canImport(CDBus)
     /// Tests connecting to the session bus.
     @Test("Session Bus Connection")
     func testSessionBusConnection() throws {
@@ -140,7 +91,7 @@ struct DBusConnectionTests {
             if connection.getConnection() != nil {
                 do {
                     // Create a message to request a name
-                    let uniqueName = "org.swift.dbus.test.\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+                    let uniqueName = "org.swift.dbus.test.\(UUID().uuidString.replacing("-", with: ""))"
                     let msg = DBusMessage.createMethodCall(
                         destination: "org.freedesktop.DBus",
                         path: "/org/freedesktop/DBus",
@@ -289,5 +240,5 @@ struct DBusConnectionTests {
             #expect(Bool(true), "D-Bus connection not available for async test")
         }
     }
+    #endif
 }
-#endif
