@@ -11,16 +11,16 @@ on:
 # Jobs to run
 jobs:
   build-and-test:
-    # *** ADJUSTED JOB NAME to use matrix.os ***
+    # Use matrix.os in job name
     name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
-    # Use specific runner OS from matrix
+    # Use runner OS from matrix
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      # *** SIMPLIFIED MATRIX DEFINITION ***
+      # Simplified matrix definition
       matrix:
-        os: [ubuntu-22.04, macos-latest] # Direct list of OS runners
-        swift: ["6.0"] # Direct list of Swift versions
+        os: [ubuntu-22.04, macos-latest]
+        swift: ["6.0"]
 
     steps:
     # 1. Check out repository code
@@ -30,7 +30,7 @@ jobs:
     # === Linux Setup (Ubuntu 22.04) ===
     # 2. (Linux Only) Ensure prerequisites are installed
     - name: Ensure Prerequisites (Linux)
-      if: matrix.os == 'ubuntu-22.04' # Condition using matrix.os
+      if: matrix.os == 'ubuntu-22.04'
       run: |
         sudo apt-get update && sudo apt-get install -y \
           gpg dirmngr gzip curl wget \
@@ -42,7 +42,7 @@ jobs:
 
     # 3. (Linux Only) Manually fetch, decompress, and import Swift keys
     - name: Manually Fetch and Import Swift Keys (Linux)
-      if: matrix.os == 'ubuntu-22.04' # Condition using matrix.os
+      if: matrix.os == 'ubuntu-22.04'
       run: |
         echo "Manually downloading, decompressing, and importing Swift keys..."
         curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
@@ -56,7 +56,7 @@ jobs:
 
     # 4. (Linux Only) Manually Download, Verify, and Install Swift for Ubuntu 22.04
     - name: Manually Install Swift (Linux - Ubuntu 22.04)
-      if: matrix.os == 'ubuntu-22.04' # Condition using matrix.os
+      if: matrix.os == 'ubuntu-22.04'
       env:
         SWIFT_VERSION: ${{ matrix.swift }}
       run: |
@@ -68,14 +68,17 @@ jobs:
         SWIFT_DOWNLOAD_URL="https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM}/${SWIFT_VERSION_TAG}/${SWIFT_TARBALL_NAME}"
 
         echo "Downloading Swift from: ${SWIFT_DOWNLOAD_URL}"
-        if wget -nv -O "${SWIFT_TARBALL_NAME}" "${SWIFT_DOWNLOAD_URL}"; then
-          echo "wget download succeeded."
+        # *** Switch back to curl for the main download ***
+        if curl -fsSL "${SWIFT_DOWNLOAD_URL}" -o "${SWIFT_TARBALL_NAME}"; then
+          echo "curl download succeeded."
         else
-          echo "wget download FAILED! Exit code: $?" >&2
+          # Exit immediately if download fails
+          echo "curl download FAILED! Exit code: $?" >&2
           exit 1
         fi
 
         echo "Downloading signature..."
+        # Still use curl for signature
         curl -fsSL "${SWIFT_DOWNLOAD_URL}.sig" -o "${SWIFT_TARBALL_NAME}.sig"
 
         echo "Verifying Swift download using GPG..."
@@ -98,7 +101,6 @@ jobs:
 
     # === macOS Setup ===
     - name: Setup Swift (macOS)
-      # *** UPDATED Condition using matrix.os ***
       if: matrix.os == 'macos-latest'
       uses: swift-actions/setup-swift@v2
       with:
@@ -111,7 +113,6 @@ jobs:
 
     # 6. Install D-Bus dependencies
     - name: Install D-Bus dependencies (Ubuntu)
-      # *** UPDATED Condition using matrix.os ***
       if: matrix.os == 'ubuntu-22.04'
       run: |
         sudo apt-get update
@@ -119,7 +120,6 @@ jobs:
         eval $(dbus-launch --auto-syntax)
         echo "D-Bus dependencies installed and session launched."
     - name: Install D-Bus (macOS)
-      # *** UPDATED Condition using matrix.os ***
       if: matrix.os == 'macos-latest'
       run: |
         brew install dbus
@@ -131,10 +131,8 @@ jobs:
 
     # 8. Run tests
     - name: Run Tests (Linux)
-      # *** UPDATED Condition using matrix.os ***
       if: matrix.os == 'ubuntu-22.04'
       run: swift test -v
     - name: Explain Skipped Tests (macOS)
-      # *** UPDATED Condition using matrix.os ***
       if: matrix.os == 'macos-latest'
       run: echo "Skipping tests on macOS as they may depend on a D-Bus session environment."
