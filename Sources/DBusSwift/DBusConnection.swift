@@ -7,9 +7,22 @@ import Foundation
 
 /// An error that can occur when working with DBus connections
 public enum DBusConnectionError: Error, CustomStringConvertible {
+    /// Indicates that a D-Bus connection could not be established
+    ///
+    /// - Parameter reason: A string describing why the connection failed
     case connectionFailed(String)
+    
+    /// Indicates that a D-Bus message operation failed
+    ///
+    /// - Parameter reason: A string describing why the message operation failed
     case messageFailed(String)
+    
+    /// Indicates that a D-Bus reply was invalid or could not be processed
+    ///
+    /// - Parameter reason: A string describing why the reply was invalid
     case invalidReply(String)
+    
+    /// Indicates that the requested D-Bus functionality is not supported
     case notSupported
     
     public var description: String {
