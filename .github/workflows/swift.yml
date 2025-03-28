@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, macos-latest]
-        # *** Use specific Swift 6.0.3 version ***
+        # Use specific working Swift 6.0.3 version
         swift: ["6.0.3"]
 
     steps:
@@ -45,7 +45,6 @@ jobs:
         echo "Manually downloading, decompressing, and importing Swift keys..."
         curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
         echo "Import process completed."
-        # Assuming 6.x key still signs .3 release, otherwise adjust name if needed
         if gpg --list-keys 'Swift 6.x Release Signing Key'; then
           echo "Swift 6.x Release Signing key successfully imported/found."
         else
@@ -53,24 +52,23 @@ jobs:
           exit 1
         fi
 
-    # 4. (Linux Only) Manually Download, Verify, and Install Swift for Ubuntu 22.04
-    - name: Manually Install Swift (Linux - Ubuntu 22.04)
+    # 4. (Linux Only) Manually Download, Verify, and Install Swift 6.0.3 Release (Verbose Curl + IPv4)
+    #    Using the URL confirmed to be working now.
+    - name: Manually Install Swift (Linux - 6.0.3 Release)
       if: matrix.os == 'ubuntu-22.04'
       env:
-        # matrix.swift will now be "6.0.3"
-        SWIFT_VERSION: ${{ matrix.swift }}
+        SWIFT_VERSION: ${{ matrix.swift }} # "6.0.3"
       run: |
         UBUNTU_VERSION_NODOT="2204"
         SWIFT_PLATFORM="ubuntu${UBUNTU_VERSION_NODOT}"
-        # These will now correctly use "6.0.3"
-        SWIFT_BRANCH="swift-${SWIFT_VERSION}-release"
-        SWIFT_VERSION_TAG="swift-${SWIFT_VERSION}-RELEASE"
-        SWIFT_TARBALL_NAME="${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz"
+        SWIFT_BRANCH="swift-${SWIFT_VERSION}-release" # "swift-6.0.3-release"
+        SWIFT_VERSION_TAG="swift-${SWIFT_VERSION}-RELEASE" # "swift-6.0.3-RELEASE"
+        SWIFT_TARBALL_NAME="${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz" # "swift-6.0.3-RELEASE-ubuntu2204.tar.gz"
         SWIFT_DOWNLOAD_URL="https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM}/${SWIFT_VERSION_TAG}/${SWIFT_TARBALL_NAME}"
 
-        echo "Downloading Swift from: ${SWIFT_DOWNLOAD_URL}"
-        # Use curl for download
-        if curl -fsSL "${SWIFT_DOWNLOAD_URL}" -o "${SWIFT_TARBALL_NAME}"; then
+        echo "Downloading Swift RELEASE from: ${SWIFT_DOWNLOAD_URL}"
+        # Use curl with Verbose and Force IPv4 for diagnostics if needed
+        if curl -vfsSL --ipv4 "${SWIFT_DOWNLOAD_URL}" -o "${SWIFT_TARBALL_NAME}"; then
           echo "curl download succeeded."
         else
           echo "curl download FAILED! Exit code: $?" >&2
@@ -78,7 +76,13 @@ jobs:
         fi
 
         echo "Downloading signature..."
-        curl -fsSL "${SWIFT_DOWNLOAD_URL}.sig" -o "${SWIFT_TARBALL_NAME}.sig"
+        # Use curl with Verbose and Force IPv4 for diagnostics if needed
+        if curl -vfsSL --ipv4 "${SWIFT_DOWNLOAD_URL}.sig" -o "${SWIFT_TARBALL_NAME}.sig"; then
+           echo "Signature download succeeded."
+        else
+           echo "Signature download FAILED! Exit code: $?" >&2
+           exit 1
+        fi
 
         echo "Verifying Swift download using GPG..."
         if gpg --verify "${SWIFT_TARBALL_NAME}.sig" "${SWIFT_TARBALL_NAME}"; then
@@ -103,8 +107,7 @@ jobs:
       if: matrix.os == 'macos-latest'
       uses: swift-actions/setup-swift@v2
       with:
-        # This should correctly fetch 6.0.3 on macOS too
-        swift-version: ${{ matrix.swift }}
+        swift-version: ${{ matrix.swift }} # "6.0.3"
 
     # === Common Steps ===
     # 5. Verify Swift installation
