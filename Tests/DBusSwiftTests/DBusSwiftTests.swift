@@ -13,7 +13,9 @@ struct DBusSwiftTests {
             method: "ListNames"
         )
         
-        #expect(msg.getMessageType() == .methodCall)
+        let messageType = msg.getMessageType()
+        let expectedType: DBusMessageType = .methodCall
+        #expect(messageType.rawValue == expectedType.rawValue)
         #else
         // Skip test on non-Linux platforms
         print("Skipping D-Bus tests on non-Linux platform")
@@ -30,7 +32,8 @@ struct DBusSwiftTests {
         )
         
         let messageType = msg.getMessageType()
-        #expect(messageType == .signal)
+        let expectedType: DBusMessageType = .signal
+        #expect(messageType.rawValue == expectedType.rawValue)
         #else
         // Skip test on non-Linux platforms
         print("Skipping D-Bus tests on non-Linux platform")
