@@ -10,19 +10,23 @@ struct DBusMessageTests {
     func testMessageTypeCreation() throws {
         // Test method call creation
         let methodCall = DBusMessage(type: .methodCall)
-        #expect(methodCall.getMessageType() == .methodCall)
+        let methodCallType = methodCall.getMessageType()
+        #expect(methodCallType.rawValue == DBUS_MESSAGE_TYPE_METHOD_CALL)
         
         // Test signal creation
         let signal = DBusMessage(type: .signal)
-        #expect(signal.getMessageType() == .signal)
+        let signalType = signal.getMessageType()
+        #expect(signalType.rawValue == DBUS_MESSAGE_TYPE_SIGNAL)
         
         // Test method return creation
         let methodReturn = DBusMessage(type: .methodReturn)
-        #expect(methodReturn.getMessageType() == .methodReturn)
+        let methodReturnType = methodReturn.getMessageType()
+        #expect(methodReturnType.rawValue == DBUS_MESSAGE_TYPE_METHOD_RETURN)
         
         // Test error message creation
         let errorMsg = DBusMessage(type: .error)
-        #expect(errorMsg.getMessageType() == .error)
+        let errorType = errorMsg.getMessageType()
+        #expect(errorType.rawValue == DBUS_MESSAGE_TYPE_ERROR)
     }
     
     /// Tests the creation of method call messages with specific parameters.
@@ -35,7 +39,8 @@ struct DBusMessageTests {
             method: "ListNames"
         )
         
-        #expect(msg.getMessageType() == .methodCall)
+        let messageType = msg.getMessageType()
+        #expect(messageType.rawValue == DBUS_MESSAGE_TYPE_METHOD_CALL)
         #expect(msg.getDestination() == "org.freedesktop.DBus")
         #expect(msg.getPath() == "/org/freedesktop/DBus")
         #expect(msg.getInterface() == "org.freedesktop.DBus")
@@ -51,7 +56,8 @@ struct DBusMessageTests {
             name: "ExampleSignal"
         )
         
-        #expect(msg.getMessageType() == .signal)
+        let messageType = msg.getMessageType()
+        #expect(messageType.rawValue == DBUS_MESSAGE_TYPE_SIGNAL)
         #expect(msg.getPath() == "/org/example/Path")
         #expect(msg.getInterface() == "org.example.Interface")
         #expect(msg.getMember() == "ExampleSignal")
