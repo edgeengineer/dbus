@@ -89,7 +89,8 @@ struct DBusCombineTests {
                 },
                 receiveValue: { message in
                     // We received the signal
-                    #expect(message.getMessageType() == .signal, "Message should be a signal")
+                    let messageType = message.getMessageType()
+                    #expect(messageType.rawValue == DBUS_MESSAGE_TYPE_SIGNAL, "Message should be a signal")
                     expectation.fulfill()
                 }
             )
@@ -99,27 +100,8 @@ struct DBusCombineTests {
         try await Task.sleep(for: .milliseconds(500))
         
         // Emit the signal
-        Task {
-            do {
-                let msg = DBusMessage.createSignal(
-                    path: testPath,
-                    interface: testInterface,
-                    name: testSignal
-                )
-                
-                // Get the connection from dbusEmitter
-                // This is a bit of a hack since we can't directly access the connection
-                // In a real test, we would modify DBusAsync to expose the connection for testing
-                let connection = try DBusConnection(busType: .session)
-                try connection.send(message: msg)
-                
-                // Wait a moment to ensure the signal is processed
-                try await Task.sleep(for: .milliseconds(500))
-            } catch {
-                print("Error emitting signal: \(error)")
-                #expect(false, "Failed to emit signal: \(error)")
-            }
-        }
+        let signal = DBusMessage.createSignal(path: testPath, interface: testInterface, name: testSignal)
+        try dbusEmitter.send(message: signal)
         
         // Wait for the expectation to be fulfilled
         try await expectation.fulfill(timeout: .seconds(5))
