@@ -11,16 +11,14 @@ on:
 # Jobs to run
 jobs:
   build-and-test:
-    # Use matrix.os in job name
     name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
-    # Use runner OS from matrix
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      # Simplified matrix definition
       matrix:
         os: [ubuntu-22.04, macos-latest]
-        swift: ["6.0"]
+        # *** Use specific Swift 6.0.3 version ***
+        swift: ["6.0.3"]
 
     steps:
     # 1. Check out repository code
@@ -47,6 +45,7 @@ jobs:
         echo "Manually downloading, decompressing, and importing Swift keys..."
         curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
         echo "Import process completed."
+        # Assuming 6.x key still signs .3 release, otherwise adjust name if needed
         if gpg --list-keys 'Swift 6.x Release Signing Key'; then
           echo "Swift 6.x Release Signing key successfully imported/found."
         else
@@ -58,27 +57,27 @@ jobs:
     - name: Manually Install Swift (Linux - Ubuntu 22.04)
       if: matrix.os == 'ubuntu-22.04'
       env:
+        # matrix.swift will now be "6.0.3"
         SWIFT_VERSION: ${{ matrix.swift }}
       run: |
         UBUNTU_VERSION_NODOT="2204"
         SWIFT_PLATFORM="ubuntu${UBUNTU_VERSION_NODOT}"
+        # These will now correctly use "6.0.3"
         SWIFT_BRANCH="swift-${SWIFT_VERSION}-release"
         SWIFT_VERSION_TAG="swift-${SWIFT_VERSION}-RELEASE"
         SWIFT_TARBALL_NAME="${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz"
         SWIFT_DOWNLOAD_URL="https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM}/${SWIFT_VERSION_TAG}/${SWIFT_TARBALL_NAME}"
 
         echo "Downloading Swift from: ${SWIFT_DOWNLOAD_URL}"
-        # *** Switch back to curl for the main download ***
+        # Use curl for download
         if curl -fsSL "${SWIFT_DOWNLOAD_URL}" -o "${SWIFT_TARBALL_NAME}"; then
           echo "curl download succeeded."
         else
-          # Exit immediately if download fails
           echo "curl download FAILED! Exit code: $?" >&2
           exit 1
         fi
 
         echo "Downloading signature..."
-        # Still use curl for signature
         curl -fsSL "${SWIFT_DOWNLOAD_URL}.sig" -o "${SWIFT_TARBALL_NAME}.sig"
 
         echo "Verifying Swift download using GPG..."
@@ -104,6 +103,7 @@ jobs:
       if: matrix.os == 'macos-latest'
       uses: swift-actions/setup-swift@v2
       with:
+        # This should correctly fetch 6.0.3 on macOS too
         swift-version: ${{ matrix.swift }}
 
     # === Common Steps ===
