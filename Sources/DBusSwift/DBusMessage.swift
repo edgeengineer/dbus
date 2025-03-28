@@ -260,9 +260,13 @@ public class DBusMessage {
             
         case "s": // string
             if let value = arg as? String {
-                var cString = value.withCString { strdup($0) }
-                defer { free(cString) }
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &cString) == 0 {
+                // Use a simpler approach with withCString that works on both platforms
+                var success = false
+                value.withCString { cString in
+                    var cStringCopy = cString
+                    success = dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &cStringCopy) != 0
+                }
+                if !success {
                     throw DBusConnectionError.messageFailed("Failed to append string")
                 }
             } else {
@@ -271,9 +275,13 @@ public class DBusMessage {
             
         case "o": // object path
             if let value = arg as? String {
-                var cString = value.withCString { strdup($0) }
-                defer { free(cString) }
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_OBJECT_PATH, &cString) == 0 {
+                // Use a simpler approach with withCString that works on both platforms
+                var success = false
+                value.withCString { cString in
+                    var cStringCopy = cString
+                    success = dbus_message_iter_append_basic(&iter, DBUS_TYPE_OBJECT_PATH, &cStringCopy) != 0
+                }
+                if !success {
                     throw DBusConnectionError.messageFailed("Failed to append object path")
                 }
             } else {
@@ -282,9 +290,13 @@ public class DBusMessage {
             
         case "g": // signature
             if let value = arg as? String {
-                var cString = value.withCString { strdup($0) }
-                defer { free(cString) }
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_SIGNATURE, &cString) == 0 {
+                // Use a simpler approach with withCString that works on both platforms
+                var success = false
+                value.withCString { cString in
+                    var cStringCopy = cString
+                    success = dbus_message_iter_append_basic(&iter, DBUS_TYPE_SIGNATURE, &cStringCopy) != 0
+                }
+                if !success {
                     throw DBusConnectionError.messageFailed("Failed to append signature")
                 }
             } else {
