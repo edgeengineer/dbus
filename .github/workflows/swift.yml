@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        swift: ["6.0.0"]
+        swift: ["6.0.3"]
     steps:
     - uses: actions/checkout@v4
     
@@ -43,13 +43,15 @@ jobs:
           zlib1g-dev
         
         # Download and install Swift
-        # Use the correct URL format for Swift.org downloads
-        SWIFT_VERSION=6.0
+        # Using the latest Swift 6.0.3 release for Ubuntu 22.04
+        SWIFT_VERSION=6.0.3
         SWIFT_PLATFORM=ubuntu2204
         SWIFT_URL=https://download.swift.org/swift-${SWIFT_VERSION}-release/${SWIFT_PLATFORM}/swift-${SWIFT_VERSION}-RELEASE/swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM}.tar.gz
         
         echo "Downloading Swift from: ${SWIFT_URL}"
-        wget ${SWIFT_URL}
+        wget -q ${SWIFT_URL}
+        
+        # Extract and install Swift
         tar xzf swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM}.tar.gz
         sudo mv swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM} /usr/share/swift
         echo "export PATH=/usr/share/swift/usr/bin:$PATH" >> ~/.bashrc
