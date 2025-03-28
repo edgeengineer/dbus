@@ -1,5 +1,12 @@
 # DBusSwift
 
+
+[![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
+[![Platforms](https://img.shields.io/badge/Platforms-macOS%20|%20Linux%20)](https://swift.org)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![macOS](https://img.shields.io/github/actions/workflow/status/apache-edge/dbus/swift.yml?branch=main&label=macOS)](https://github.com/apache-edge/dbus/actions/workflows/swift.yml)
+[![Linux](https://img.shields.io/github/actions/workflow/status/apache-edge/dbus/swift.yml?branch=main&label=Linux)](https://github.com/apache-edge/dbus/actions/workflows/swift.yml)
+
 A Swift 6 wrapper for the D-Bus C library with support for modern Swift concurrency.
 
 ## Overview
