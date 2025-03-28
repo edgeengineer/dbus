@@ -19,14 +19,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    # Fix GPG key issues before Swift setup
+    # Fix GPG key issues before Swift setup (Ubuntu only)
     - name: Fix GPG keys (Ubuntu)
       if: runner.os == 'Linux'
       run: |
-        # Import Swift signing keys
-        wget -qO- https://swift.org/keys/all-keys.asc | gpg --import -
+        # Add the Swift key directly
+        curl -fsSL https://swift.org/keys/all-keys.asc | sudo gpg --import --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/swift.gpg
+        sudo chmod 644 /etc/apt/trusted.gpg.d/swift.gpg
         # Add the specific key that's causing issues
-        sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys EF80A866B47A981F
+        curl -fsSL https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xEF80A866B47A981F | sudo gpg --import --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/custom.gpg
+        sudo chmod 644 /etc/apt/trusted.gpg.d/custom.gpg
     
     - name: Setup Swift
       uses: SwiftyLab/setup-swift@v1
