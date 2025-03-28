@@ -1,4 +1,9 @@
 import CDBus
+#if os(Linux)
+import Glibc // Import Glibc for strdup, free, etc. on Linux
+#elseif os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+import Darwin // On Apple platforms, these are often in Darwin or implicitly via Foundation
+#endif
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
