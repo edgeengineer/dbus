@@ -11,22 +11,22 @@ struct DBusMessageTests {
         // Test method call creation
         let methodCall = DBusMessage(type: .methodCall)
         let methodCallType = methodCall.getMessageType()
-        #expect(methodCallType.rawValue == DBUS_MESSAGE_TYPE_METHOD_CALL)
+        #expect(methodCallType == .methodCall)
         
         // Test signal creation
         let signal = DBusMessage(type: .signal)
         let signalType = signal.getMessageType()
-        #expect(signalType.rawValue == DBUS_MESSAGE_TYPE_SIGNAL)
+        #expect(signalType == .signal)
         
         // Test method return creation
         let methodReturn = DBusMessage(type: .methodReturn)
         let methodReturnType = methodReturn.getMessageType()
-        #expect(methodReturnType.rawValue == DBUS_MESSAGE_TYPE_METHOD_RETURN)
+        #expect(methodReturnType == .methodReturn)
         
         // Test error message creation
         let errorMsg = DBusMessage(type: .error)
         let errorType = errorMsg.getMessageType()
-        #expect(errorType.rawValue == DBUS_MESSAGE_TYPE_ERROR)
+        #expect(errorType == .error)
     }
     
     /// Tests the creation of method call messages with specific parameters.
@@ -40,7 +40,7 @@ struct DBusMessageTests {
         )
         
         let messageType = msg.getMessageType()
-        #expect(messageType.rawValue == DBUS_MESSAGE_TYPE_METHOD_CALL)
+        #expect(messageType == .methodCall)
         #expect(msg.getDestination() == "org.freedesktop.DBus")
         #expect(msg.getPath() == "/org/freedesktop/DBus")
         #expect(msg.getInterface() == "org.freedesktop.DBus")
@@ -57,7 +57,7 @@ struct DBusMessageTests {
         )
         
         let messageType = msg.getMessageType()
-        #expect(messageType.rawValue == DBUS_MESSAGE_TYPE_SIGNAL)
+        #expect(messageType == .signal)
         #expect(msg.getPath() == "/org/example/Path")
         #expect(msg.getInterface() == "org.example.Interface")
         #expect(msg.getMember() == "ExampleSignal")

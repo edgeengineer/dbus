@@ -13,10 +13,9 @@ struct DBusSwiftTests {
             method: "ListNames"
         )
         
-        // Verify message type using raw value comparison
+        // Verify message type using enum comparison
         let messageType = msg.getMessageType()
-        let expectedRawValue = DBUS_MESSAGE_TYPE_METHOD_CALL
-        #expect(messageType.rawValue == expectedRawValue)
+        #expect(messageType == .methodCall)
         
         // Verify message properties
         #expect(msg.getDestination() == "org.freedesktop.DBus")
@@ -38,10 +37,9 @@ struct DBusSwiftTests {
             name: "ExampleSignal"
         )
         
-        // Verify message type using raw value comparison
+        // Verify message type using enum comparison
         let messageType = msg.getMessageType()
-        let expectedRawValue = DBUS_MESSAGE_TYPE_SIGNAL
-        #expect(messageType.rawValue == expectedRawValue)
+        #expect(messageType == .signal)
         
         // Verify message properties
         #expect(msg.getPath() == "/org/example/Path")
