@@ -29,50 +29,39 @@ jobs:
     - name: Ensure Prerequisites
       run: |
         sudo apt-get update && sudo apt-get install -y \
-          gpg dirmngr gzip curl wget \
+          gpg dirmngr curl wget \
           libatomic1 libncurses5
         mkdir -p ~/.gnupg
         chmod 700 ~/.gnupg
         echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
         echo "Prerequisites installed, GPG configured."
 
-    # 3. Manually fetch, decompress, and import Swift keys
-    #    Workaround for setup-swift action's inability to handle gzipped keys from server.
-    - name: Manually Fetch and Import Swift Keys
+    # 3. Fetch and import Swift keys
+    - name: Fetch and Import Swift Keys
       run: |
-        echo "Manually downloading, decompressing, and importing Swift keys..."
-        curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
+        echo "Downloading and importing Swift keys..."
+        curl -fsSL https://swift.org/keys/all-keys.asc | gpg --import -
         echo "Import process completed."
         if gpg --list-keys 'Swift 6.x Release Signing Key'; then
           echo "Swift 6.x Release Signing key successfully imported/found."
         else
-          # Fail early if keys definitely didn't import
-          echo "ERROR: Swift 6.x Release Signing Key not found after import attempt!" >&2
-          exit 1
+          # Try alternative key format
+          curl -fsSL https://swift.org/keys/all-keys.asc.gpg | gpg --import -
+          if gpg --list-keys 'Swift 6.x Release Signing Key'; then
+            echo "Swift 6.x Release Signing key successfully imported/found (alternative format)."
+          else
+            echo "ERROR: Swift 6.x Release Signing Key not found after import attempts!" >&2
+            exit 1
+          fi
         fi
 
-    # 4. Set up Swift using action, ignoring its internal GPG error
-    #    Relies on Step 3 having imported keys correctly. Bypasses internal check failure.
-    - name: Setup Swift (Ignoring Internal GPG Error)
+    # 4. Set up Swift using action
+    - name: Setup Swift
       uses: swift-actions/setup-swift@v2
-      continue-on-error: true # <<< ALLOW STEP TO "FAIL" INTERNALLY BUT CONTINUE WORKFLOW
       with:
         swift-version: ${{ matrix.swift }} # "6.0.0"
 
-    # 4.1 Verify if Swift is available after setup-swift attempt
-    - name: Verify Swift Command Availability
-      id: verify_swift # Give step an ID to check its outcome if needed later
-      run: |
-        if ! command -v swift &> /dev/null; then
-          echo "::error::Swift command NOT found after setup-swift ran with continue-on-error."
-          exit 1
-        else
-          echo "Swift command IS available. Verifying version..."
-          swift --version
-        fi
-
-    # === Common Steps ===
-    # 5. Verify Swift installation (redundant check, but harmless)
+    # 5. Verify Swift installation
     - name: Verify Swift installation
       run: swift --version
 
