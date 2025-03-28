@@ -18,26 +18,37 @@ jobs:
         swift: ["6.0.0"]
     steps:
     - uses: actions/checkout@v4
+    
+    # Fix GPG key issues before Swift setup
+    - name: Fix GPG keys (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        # Import Swift signing keys
+        wget -qO- https://swift.org/keys/all-keys.asc | gpg --import -
+        # Add the specific key that's causing issues
+        sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys EF80A866B47A981F
+    
     - name: Setup Swift
       uses: SwiftyLab/setup-swift@v1
       with:
         swift-version: ${{ matrix.swift }}
+        
     - name: Install D-Bus dependencies (Ubuntu)
       if: runner.os == 'Linux'
       run: |
-        # Fix GPG key issue
-        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys EF80A866B47A981F
-        # Update and install D-Bus
         sudo apt-get update
         sudo apt-get install -y libdbus-1-dev dbus
         # Start D-Bus session for testing
         sudo dbus-launch --auto-syntax
+        
     - name: Install D-Bus (macOS)
       if: runner.os == 'macOS'
       run: |
         brew install dbus
         brew services start dbus
+        
     - name: Build
       run: swift build -c release
+      
     - name: Run tests with Swift Testing
       run: swift test
