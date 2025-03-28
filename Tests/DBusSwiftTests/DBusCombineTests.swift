@@ -14,8 +14,9 @@ struct DBusCombineTests {
         // Create a D-Bus connection
         let dbus = try DBusAsync(busType: .session)
         
-        // Create an expectation for the async test
-        let expectation = Expectation(description: "Call publisher completes")
+        // Use a simple async flag instead of Expectation
+        var completed = false
+        var receivedValue = false
         
         // Call ListNames method using the publisher
         dbus.callPublisher(
@@ -28,12 +29,11 @@ struct DBusCombineTests {
             receiveCompletion: { completion in
                 switch completion {
                 case .finished:
-                    break
+                    completed = true
                 case .failure(let error):
                     print("Error: \(error)")
                     #expect(false, "Call publisher failed with error: \(error)")
                 }
-                expectation.fulfill()
             },
             receiveValue: { value in
                 // We should receive an array of bus names
@@ -42,12 +42,17 @@ struct DBusCombineTests {
                 // The result should contain at least the D-Bus service itself
                 let stringValues = value.compactMap { $0 as? String }
                 #expect(stringValues.contains("org.freedesktop.DBus"), "Result should contain org.freedesktop.DBus")
+                receivedValue = true
             }
         )
         .store(in: &cancellables)
         
-        // Wait for the expectation to be fulfilled
-        try await expectation.fulfill(timeout: .seconds(5))
+        // Wait for a short time to allow the publisher to complete
+        try await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
+        
+        // Check that we received a value and completed
+        #expect(receivedValue, "Should have received a value")
+        #expect(completed, "Publisher should have completed")
     }
     
     @Test("Test Signal Publisher")
@@ -62,8 +67,8 @@ struct DBusCombineTests {
         let dbusEmitter = try DBusAsync(busType: .session)
         let dbusReceiver = try DBusAsync(busType: .session)
         
-        // Create an expectation for the signal
-        let expectation = Expectation(description: "Signal received")
+        // Use a simple async flag instead of Expectation
+        var signalReceived = false
         
         // The test interface and signal name
         let testInterface = "org.swift.DBusTest"
@@ -86,20 +91,26 @@ struct DBusCombineTests {
                     // We received the signal
                     let messageType = message.getMessageType()
                     #expect(messageType.rawValue == DBUS_MESSAGE_TYPE_SIGNAL, "Message should be a signal")
-                    expectation.fulfill()
+                    signalReceived = true
                 }
             )
             .store(in: &cancellables)
         
         // Wait a moment for the subscription to be set up
-        try await Task.sleep(for: .milliseconds(500))
+        try await Task.sleep(nanoseconds: 500_000_000) // 500 milliseconds
         
-        // Emit the signal
-        let signal = DBusMessage.createSignal(path: testPath, interface: testInterface, name: testSignal)
-        try dbusEmitter.send(message: signal)
+        // Emit the signal using the emitSignal method
+        try await dbusEmitter.emitSignal(
+            path: testPath,
+            interface: testInterface,
+            name: testSignal
+        )
         
-        // Wait for the expectation to be fulfilled
-        try await expectation.fulfill(timeout: .seconds(5))
+        // Wait for a short time to allow the signal to be received
+        try await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
+        
+        // Check that we received the signal
+        #expect(signalReceived, "Should have received the signal")
     }
 }
 #else

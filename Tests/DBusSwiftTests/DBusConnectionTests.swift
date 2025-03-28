@@ -124,16 +124,27 @@ struct DBusConnectionTests {
             // Test that we can create an async connection
             #expect(dbus != nil)
             
-            // Create a method call to list names on the bus
-            let msg = DBusMessage.createMethodCall(
+            // Call a method asynchronously using the call method
+            let result = try await dbus.call(
                 destination: "org.freedesktop.DBus",
                 path: "/org/freedesktop/DBus",
                 interface: "org.freedesktop.DBus",
                 method: "ListNames"
             )
             
-            // Send the message asynchronously
-            let reply = try await dbus.send(message: msg)
+            // Check that we got a result
+            #expect(result.isEmpty == false)
+            
+            // Get the connection and send a message directly
+            let connection = dbus.getConnection()
+            let msg = DBusMessage.createMethodCall(
+                destination: "org.freedesktop.DBus",
+                path: "/org/freedesktop/DBus",
+                interface: "org.freedesktop.DBus",
+                method: "GetId"
+            )
+            
+            let reply = try connection.send(message: msg)
             
             // Check that we got a reply
             #expect(reply != nil)
