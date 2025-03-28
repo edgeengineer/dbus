@@ -107,7 +107,7 @@ struct DBusConnectionTests {
             if let reply = reply {
                 // Check that the reply is a method return message
                 let messageType = reply.getMessageType()
-                #expect(messageType.rawValue == DBUS_MESSAGE_TYPE_METHOD_RETURN)
+                #expect(messageType == .methodReturn)
             }
         } catch {
             // Allow failure if D-Bus isn't running
@@ -135,8 +135,8 @@ struct DBusConnectionTests {
             // Check that we got a result
             #expect(result.isEmpty == false)
             
-            // Get the connection and send a message directly
-            let connection = dbus.getConnection()
+            // Create a direct connection instead of using the actor's connection
+            let directConnection = try DBusConnection(busType: .session)
             let msg = DBusMessage.createMethodCall(
                 destination: "org.freedesktop.DBus",
                 path: "/org/freedesktop/DBus",
@@ -144,7 +144,7 @@ struct DBusConnectionTests {
                 method: "GetId"
             )
             
-            let reply = try connection.send(message: msg)
+            let reply = try directConnection.send(message: msg)
             
             // Check that we got a reply
             #expect(reply != nil)
@@ -152,7 +152,7 @@ struct DBusConnectionTests {
             if let reply = reply {
                 // Check that the reply is a method return message
                 let messageType = reply.getMessageType()
-                #expect(messageType.rawValue == DBUS_MESSAGE_TYPE_METHOD_RETURN)
+                #expect(messageType == .methodReturn)
             }
         } catch {
             // Allow failure if D-Bus isn't running
@@ -160,6 +160,7 @@ struct DBusConnectionTests {
         }
     }
     #else
+    // This test runs when D-Bus is not available on the platform
     @Test("Skip on Non-Linux")
     func testSkipOnNonLinux() {
         // Skip tests on non-Linux platforms
