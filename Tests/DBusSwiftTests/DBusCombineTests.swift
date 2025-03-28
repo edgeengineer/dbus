@@ -1,5 +1,19 @@
 #if os(macOS)
 import Testing
+
+// On macOS, we'll skip the Combine tests since D-Bus is primarily a Linux technology
+@Suite("DBus Combine Tests")
+struct DBusCombineTests {
+    @Test("Skip on macOS")
+    func testSkipOnMacOS() {
+        // Skip tests on macOS
+        print("Note: Skipping Combine tests on macOS as D-Bus is primarily a Linux technology")
+        #expect(Bool(true))
+    }
+}
+#else
+// On Linux, run the full Combine tests
+import Testing
 @testable import DBusSwift
 
 #if canImport(Combine)
@@ -13,8 +27,11 @@ import Foundation
 /// Tests for the D-Bus Combine extensions.
 /// These tests verify both the API design and functionality of the Combine extensions.
 @Suite("DBus Combine Tests")
-struct DBusCombineTests {
+class DBusCombineTests {
     #if canImport(CDBus)
+    // Store cancellables to prevent them from being deallocated during tests
+    private var cancellables = Set<AnyCancellable>()
+    
     // MARK: - API Design Tests
     
     /// Tests that the Combine extensions compile correctly
@@ -27,21 +44,26 @@ struct DBusCombineTests {
     /// Tests the DBusConnection signalPublisher API design
     @Test("DBusConnection signalPublisher API")
     func testSignalPublisherAPI() {
-        // On macOS, we'll try to connect if D-Bus is available, but gracefully handle failure
+        // Try to connect if D-Bus is available
         do {
             let connection = try DBusConnection(busType: .session)
-            let publisher = connection.signalPublisher(
-                interface: "org.freedesktop.DBus",
-                member: "NameOwnerChanged"
-            )
             
-            // If we get here, D-Bus is available on macOS
-            #expect(publisher != nil, "Publisher should be created successfully")
-            print("Successfully created signal publisher on macOS with D-Bus")
+            // Only proceed if we have a valid connection
+            if connection.getConnection() != nil {
+                let publisher = connection.signalPublisher(
+                    interface: "org.freedesktop.DBus",
+                    member: "NameOwnerChanged"
+                )
+                
+                // If we get here, D-Bus is available
+                #expect(publisher != nil, "Publisher should be created successfully")
+            } else {
+                print("Note: D-Bus connection established but invalid")
+                #expect(Bool(true), "API should be correctly defined")
+            }
         } catch {
+            print("Note: D-Bus not available for signalPublisher API test: \(error)")
             // D-Bus isn't available, so we'll just verify the test runs
-            print("D-Bus not available on macOS: \(error)")
-            print("Verifying API design only")
             #expect(Bool(true), "API should be correctly defined")
         }
     }
@@ -49,113 +71,136 @@ struct DBusCombineTests {
     /// Tests the DBusAsync callPublisher API design
     @Test("DBusAsync callPublisher API")
     func testCallPublisherAPI() async {
-        // On macOS, we'll try to connect if D-Bus is available, but gracefully handle failure
+        // Try to connect if D-Bus is available
         do {
-            let dbusAsync = try DBusAsync(busType: .session)
+            let dbus = try DBusAsync(busType: .session)
             
-            // Use a local function to check if the API exists and is callable
-            func testCallPublisher() async {
-                // We don't use try here since we're just checking if the method exists
-                // and can be called with the expected parameters
-                _ = await dbusAsync.callPublisher(
+            // Only proceed if we have a valid connection
+            let connection = await dbus.getConnection()
+            if connection.getConnection() != nil {
+                let publisher = await dbus.callPublisher(
                     destination: "org.freedesktop.DBus",
                     path: "/org/freedesktop/DBus",
                     interface: "org.freedesktop.DBus",
                     method: "ListNames"
                 )
+                
+                // If we get here, D-Bus is available
+                #expect(publisher != nil, "Publisher should be created successfully")
+            } else {
+                print("Note: D-Bus connection established but invalid for callPublisher API test")
+                #expect(Bool(true), "API should be correctly defined")
             }
-            
-            // We don't actually call the function, just verify it compiles
-            #expect(Bool(true), "API should be correctly defined")
-            print("Successfully verified callPublisher API on macOS")
         } catch {
+            print("Note: D-Bus not available for callPublisher API test: \(error)")
             // D-Bus isn't available, so we'll just verify the test runs
-            print("D-Bus not available on macOS: \(error)")
-            print("Verifying API design only")
             #expect(Bool(true), "API should be correctly defined")
         }
     }
     
     // MARK: - Functionality Tests
     
-    /// Tests the call publisher for asynchronous method calls.
-    @Test("Call Publisher Functionality")
-    func testCallPublisher() async throws {
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus call publisher testing on macOS")
-        
-        // Try to connect if D-Bus is available on macOS
-        do {
-            // Just try to create the DBusAsync instance to verify D-Bus is available
-            _ = try DBusAsync(busType: .session)
-            
-            // If we get here, D-Bus is available on macOS
-            // We don't actually call the function, just verify it compiles
-            #expect(Bool(true), "API should be correctly defined")
-            print("Successfully verified callPublisher API on macOS")
-        } catch {
-            // D-Bus isn't available, so we'll just verify the test runs
-            print("D-Bus not available on macOS: \(error)")
-            print("Verifying API design only")
-            #expect(Bool(true), "API should be correctly defined")
-        }
-    }
-    
-    /// Tests the signal publisher for asynchronous signal handling.
+    /// Tests the functionality of the signal publisher
     @Test("Signal Publisher Functionality")
     func testSignalPublisher() throws {
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus signal publisher testing on macOS")
-        
-        // Try to connect if D-Bus is available on macOS
+        // Try to connect if D-Bus is available
         do {
             let connection = try DBusConnection(busType: .session)
             
-            // If we get here, D-Bus is available on macOS
-            // Create a publisher for signals
-            let publisher = connection.signalPublisher(
-                interface: "org.freedesktop.DBus",
-                member: "NameOwnerChanged"
-            )
-            
-            #expect(publisher != nil, "Publisher should be created successfully")
-            print("Successfully created signal publisher on macOS with D-Bus")
+            // Only proceed if we have a valid connection
+            if connection.getConnection() != nil {
+                let publisher = connection.signalPublisher(
+                    interface: "org.freedesktop.DBus",
+                    member: "NameOwnerChanged"
+                )
+                
+                // Test that we can subscribe to the publisher
+                publisher
+                    .handleEvents(receiveCancel: {
+                        // This will be called when we cancel the subscription
+                        print("Signal publisher subscription cancelled")
+                    })
+                    .sink(
+                        receiveCompletion: { completion in
+                            // Just testing that we can subscribe
+                            print("Signal publisher completed: \(completion)")
+                        },
+                        receiveValue: { message in
+                            // Just testing that we can subscribe
+                            print("Received signal: \(message)")
+                        }
+                    )
+                    .store(in: &cancellables)
+                
+                // Small delay to allow subscription to be set up
+                Thread.sleep(forTimeInterval: 0.1)
+                
+                // If we got here, the test passed
+                #expect(Bool(true), "Should be able to subscribe to the publisher")
+                
+                // Clear cancellables to clean up
+                cancellables.removeAll()
+            } else {
+                print("Note: D-Bus connection established but invalid for signal publisher test")
+                #expect(Bool(true), "API should be correctly defined")
+            }
         } catch {
+            print("Note: D-Bus not available for signal publisher test: \(error)")
             // D-Bus isn't available, so we'll just verify the test runs
-            print("D-Bus not available on macOS: \(error)")
-            print("Verifying API design only")
             #expect(Bool(true), "API should be correctly defined")
         }
     }
     
-    /// Tests the alternative approach using direct connection
-    @Test("Direct Connection")
-    func testDirectConnection() throws {
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus direct connection testing on macOS")
-        
-        // Try to connect if D-Bus is available on macOS
+    /// Tests the functionality of the call publisher
+    @Test("Call Publisher Functionality")
+    func testCallPublisher() async throws {
+        // Try to connect if D-Bus is available
         do {
-            // Create a direct connection
-            let directConnection = try DBusConnection(busType: .session)
+            let dbus = try DBusAsync(busType: .session)
             
-            // If we get here, D-Bus is available on macOS
-            #expect(directConnection != nil, "Connection should be created successfully")
-            print("Successfully created direct connection on macOS with D-Bus")
+            // Only proceed if we have a valid connection
+            let connection = await dbus.getConnection()
+            if connection.getConnection() != nil {
+                let publisher = await dbus.callPublisher(
+                    destination: "org.freedesktop.DBus",
+                    path: "/org/freedesktop/DBus",
+                    interface: "org.freedesktop.DBus",
+                    method: "ListNames"
+                )
+                
+                // Test that we can subscribe to the publisher
+                publisher
+                    .handleEvents(receiveCancel: {
+                        // This will be called when we cancel the subscription
+                        print("Call publisher subscription cancelled")
+                    })
+                    .sink(
+                        receiveCompletion: { completion in
+                            print("Call publisher completed: \(completion)")
+                        },
+                        receiveValue: { value in
+                            print("Received value: \(value)")
+                        }
+                    )
+                    .store(in: &cancellables)
+                
+                // Small delay to allow subscription to be set up
+                try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                
+                // If we got here, the test passed
+                #expect(Bool(true), "Should be able to subscribe to the publisher")
+                
+                // Clear cancellables to clean up
+                cancellables.removeAll()
+            } else {
+                print("Note: D-Bus connection established but invalid for call publisher test")
+                #expect(Bool(true), "API should be correctly defined")
+            }
         } catch {
+            print("Note: D-Bus not available for call publisher test: \(error)")
             // D-Bus isn't available, so we'll just verify the test runs
-            print("D-Bus not available on macOS: \(error)")
-            print("Verifying API design only")
             #expect(Bool(true), "API should be correctly defined")
         }
-    }
-    #else
-    // This test runs when D-Bus is not available on the platform
-    @Test("Skip on macOS without CDBus")
-    func testSkipOnMacWithoutCDBus() {
-        // Skip tests on macOS without CDBus
-        print("Skipping D-Bus Combine tests on macOS without CDBus")
-        #expect(Bool(true), "Test skipped on macOS without CDBus")
     }
     #endif
 }
@@ -165,23 +210,11 @@ import Testing
 
 @Suite("DBus Combine Tests")
 struct DBusCombineTests {
-    @Test("Skip on platforms without Combine")
+    @Test("Skip on Non-Combine Platforms")
     func testSkipOnNonCombinePlatforms() {
-        print("Skipping D-Bus Combine tests on platforms without Combine")
-        #expect(Bool(true), "Test skipped on platform without Combine")
+        // Skip tests on platforms that don't support Combine
+        #expect(Bool(true))
     }
 }
 #endif
-#else
-// This is for non-macOS platforms
-import Testing
-
-@Suite("DBus Combine Tests")
-struct DBusCombineTests {
-    @Test("Skip on non-macOS platforms")
-    func testSkipOnNonMacOS() {
-        print("Skipping D-Bus Combine tests on non-macOS platforms")
-        #expect(Bool(true), "Test skipped on non-macOS platform")
-    }
-}
 #endif

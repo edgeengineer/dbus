@@ -9,8 +9,7 @@ struct DBusSwiftTests {
     @Test("Message Creation")
     func testMessageCreation() {
         #if os(macOS)
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus message creation testing on macOS")
+        // On macOS, we just verify the API compiles
         #else
         let msg = DBusMessage.createMethodCall(
             destination: "org.freedesktop.DBus",
@@ -35,8 +34,7 @@ struct DBusSwiftTests {
     @Test("Signal Creation")
     func testSignalCreation() {
         #if os(macOS)
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus signal creation testing on macOS")
+        // On macOS, we just verify the API compiles
         #else
         let msg = DBusMessage.createSignal(
             path: "/org/example/Path",
@@ -59,8 +57,7 @@ struct DBusSwiftTests {
     @Test("Argument Appending")
     func testArgumentAppending() {
         #if os(macOS)
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus argument appending testing on macOS")
+        // On macOS, we just verify the API compiles
         #else
         let msg = DBusMessage(type: .methodCall)
         
@@ -77,8 +74,7 @@ struct DBusSwiftTests {
     @Test("Message Headers")
     func testMessageHeaders() {
         #if os(macOS)
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus message headers testing on macOS")
+        // On macOS, we just verify the API compiles
         #else
         let msg = DBusMessage(type: .methodCall)
         
@@ -103,8 +99,7 @@ struct DBusSwiftTests {
     @Test("Message Type Creation")
     func testMessageTypeCreation() {
         #if os(macOS)
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus message type creation testing on macOS")
+        // On macOS, we just verify the API compiles
         #else
         let methodCall = DBusMessage(type: .methodCall)
         #expect(methodCall.getMessageType() == .methodCall)
@@ -124,8 +119,7 @@ struct DBusSwiftTests {
     @Test("Argument Handling")
     func testArgumentHandling() {
         #if os(macOS)
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus argument handling testing on macOS")
+        // On macOS, we just verify the API compiles
         #else
         let msg = DBusMessage(type: .methodCall)
         
@@ -149,10 +143,7 @@ struct DBusSwiftTests {
     @Test("System Bus Connection")
     func testSystemBusConnection() async {
         #if os(macOS)
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus system bus connection testing on macOS")
-        print("Note: Full D-Bus functionality can only be tested on Linux where D-Bus is available.")
-        print("These tests only verify that the code compiles correctly on macOS.")
+        // On macOS, we just verify the API compiles
         #else
         do {
             let dbus = try DBusAsync(busType: .system)
@@ -169,8 +160,7 @@ struct DBusSwiftTests {
     @Test("Send With Reply")
     func testSendWithReply() {
         #if os(macOS)
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus send with reply testing on macOS")
+        // On macOS, we just verify the API compiles
         #else
         do {
             let connection = try DBusConnection(busType: .session)
@@ -193,8 +183,7 @@ struct DBusSwiftTests {
     @Test("DBus Async")
     func testDBusAsync() async {
         #if os(macOS)
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus async testing on macOS")
+        // On macOS, we just verify the API compiles
         #else
         do {
             let dbus = try DBusAsync(busType: .session)
@@ -210,8 +199,7 @@ struct DBusSwiftTests {
     @Test("Request Name")
     func testRequestName() {
         #if os(macOS)
-        // On macOS, we'll just print a message about limited testing
-        print("Performing limited D-Bus name request testing on macOS")
+        // On macOS, we just verify the API compiles
         #else
         do {
             let connection = try DBusConnection(busType: .session)
@@ -227,7 +215,7 @@ struct DBusSwiftTests {
     /// Placeholder test for platforms without D-Bus
     @Test("D-Bus Not Available")
     func testDBusNotAvailable() {
-        print("D-Bus is not available on this platform. Skipping tests.")
+        // D-Bus is not available on this platform. Skipping tests.
     }
     #endif
 }

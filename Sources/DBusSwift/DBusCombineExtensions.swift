@@ -8,6 +8,21 @@ import Foundation
 #if canImport(Combine)
 @preconcurrency import Combine
 
+/// A class to store cancellables for each DBusConnection instance
+private final class CancellableStorage {
+    var cancellables = Set<AnyCancellable>()
+    
+    // Method to add a cancellable
+    func store(_ cancellable: AnyCancellable) {
+        cancellables.insert(cancellable)
+    }
+    
+    // Method to clear all cancellables
+    func clear() {
+        cancellables.removeAll()
+    }
+}
+
 /// Provides Combine extensions for DBusSwift
 @available(macOS 10.15, *)
 public extension DBusConnection {
@@ -38,8 +53,11 @@ public extension DBusConnection {
         do {
             try addMatch(rule: matchRule)
             
-            // Create a timer to poll for signals
-            let timer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+            // Create a timer to poll for signals - use a lower frequency to reduce CPU usage
+            let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
+            
+            // Create a storage for cancellables that will be captured by the closure
+            let storage = CancellableStorage()
             
             // Capture self in a local variable to avoid capturing in the closure
             let connection = self
@@ -49,18 +67,19 @@ public extension DBusConnection {
                 .handleEvents(receiveSubscription: { _ in
                     // Subscribe to the timer
                     timer.sink { _ in
+                        // Create a message to receive signals
+                        let message = DBusMessage(type: .signal)
+                        
                         do {
-                            // Create a message to receive signals
-                            let message = DBusMessage(type: .signal)
-                            
                             // Try to receive a message with a very short timeout
                             if let receivedMsg = try connection.send(message: message, timeoutMS: 0) {
                                 // Check if it matches our criteria
-                                guard receivedMsg.getMessageType() == .signal else { return }
+                                let messageType = receivedMsg.getMessageType()
+                                guard messageType == .signal else { return }
                                 
                                 // Get interface and member from the message using accessor methods
-                                guard let messageInterface = receivedMsg.interface,
-                                      let messageMember = receivedMsg.member else { return }
+                                guard let messageInterface = receivedMsg.getInterface(),
+                                      let messageMember = receivedMsg.getMember() else { return }
                                 
                                 // Check if it matches our criteria
                                 if messageInterface == interface && messageMember == member {
@@ -74,7 +93,7 @@ public extension DBusConnection {
                                 subject.send(completion: .failure(error))
                             }
                         }
-                    }.store(in: &self.cancellables)
+                    }.store(in: &storage.cancellables)
                 }, receiveCancel: {
                     // Remove match rule when all subscribers are gone
                     do {
@@ -84,29 +103,12 @@ public extension DBusConnection {
                     }
                     
                     // Clear cancellables
-                    self.cancellables.removeAll()
+                    storage.clear()
                 })
                 .eraseToAnyPublisher()
         } catch {
             // If we can't add the match rule, return a publisher that immediately fails
             return Fail(error: error).eraseToAnyPublisher()
-        }
-    }
-    
-    // Storage for cancellables
-    private var cancellables: Set<AnyCancellable> {
-        get {
-            let key = "DBusConnection.cancellables"
-            if let existing = objc_getAssociatedObject(self, key) as? Set<AnyCancellable> {
-                return existing
-            }
-            let new = Set<AnyCancellable>()
-            objc_setAssociatedObject(self, key, new, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            return new
-        }
-        set {
-            let key = "DBusConnection.cancellables"
-            objc_setAssociatedObject(self, key, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
     }
 }
@@ -181,16 +183,20 @@ public extension DBusAsync {
         return Future<AnyPublisher<DBusMessage, Error>, Error> { promise in
             // Execute in a task to handle async operations
             Task {
-                // Get the connection
-                let connection = self.getConnection()
-                
-                // Create a signal publisher
-                let publisher = connection.signalPublisher(
-                    interface: interface,
-                    member: member,
-                    path: path
-                )
-                promise(.success(publisher))
+                do {
+                    // Get the connection
+                    let connection = self.getConnection()
+                    
+                    // Create a signal publisher
+                    let publisher = connection.signalPublisher(
+                        interface: interface,
+                        member: member,
+                        path: path
+                    )
+                    promise(.success(publisher))
+                } catch {
+                    promise(.failure(error))
+                }
             }
         }
         .switchToLatest()
@@ -198,24 +204,31 @@ public extension DBusAsync {
     }
     
     // Helper function to convert Any to Sendable
-    private func convertToSendable(_ value: Any) -> Sendable {
-        switch value {
-        case let val as String:
+    private func convertToSendable(_ value: Any) -> any Sendable {
+        // Handle specific types directly to avoid runtime type checking issues
+        if let val = value as? String {
             return val
-        case let val as Int:
+        } else if let val = value as? Int {
             return val
-        case let val as Int32:
+        } else if let val = value as? Int32 {
             return val
-        case let val as UInt32:
+        } else if let val = value as? UInt32 {
             return val
-        case let val as Bool:
+        } else if let val = value as? Bool {
             return val
-        case let val as Double:
+        } else if let val = value as? Double {
             return val
-        case let val as [Any]:
+        } else if let val = value as? [Any] {
             return val.map { convertToSendable($0) }
-        default:
-            return "\(value)" // Fallback to string representation
+        } else if let val = value as? [String: Any] {
+            var result = [String: any Sendable]()
+            for (key, innerValue) in val {
+                result[key] = convertToSendable(innerValue)
+            }
+            return result
+        } else {
+            // Fallback to string representation for unknown types
+            return String(describing: value)
         }
     }
 }
