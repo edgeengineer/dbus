@@ -103,17 +103,19 @@ struct DBusConnectionTests {
             
             // Check that we got a reply
             #expect(reply != nil)
-            #expect(reply?.getMessageType() == .methodReturn)
             
-            // We can't easily verify the contents of the reply,
-            // but this ensures the call completes successfully
+            if let reply = reply {
+                // Check that the reply is a method return message
+                let messageType = reply.getMessageType()
+                #expect(messageType.rawValue == DBUS_MESSAGE_TYPE_METHOD_RETURN)
+            }
         } catch {
             // Allow failure if D-Bus isn't running
-            print("Warning: Could not send message: \(error)")
+            print("Warning: Could not connect to session bus: \(error)")
         }
     }
     
-    /// Tests the async DBus wrapper.
+    /// Tests the DBusAsync class for asynchronous D-Bus operations.
     @Test("DBus Async")
     func testDBusAsync() async throws {
         do {
@@ -122,22 +124,28 @@ struct DBusConnectionTests {
             // Test that we can create an async connection
             #expect(dbus != nil)
             
-            // Test calling a method asynchronously
-            let result = try await dbus.call(
+            // Create a method call to list names on the bus
+            let msg = DBusMessage.createMethodCall(
                 destination: "org.freedesktop.DBus",
                 path: "/org/freedesktop/DBus",
                 interface: "org.freedesktop.DBus",
                 method: "ListNames"
             )
             
-            // Check that we got a result
-            #expect(result != nil)
+            // Send the message asynchronously
+            let reply = try await dbus.send(message: msg)
             
-            // We can't easily verify the contents of the result,
-            // but this ensures the call completes successfully
+            // Check that we got a reply
+            #expect(reply != nil)
+            
+            if let reply = reply {
+                // Check that the reply is a method return message
+                let messageType = reply.getMessageType()
+                #expect(messageType.rawValue == DBUS_MESSAGE_TYPE_METHOD_RETURN)
+            }
         } catch {
             // Allow failure if D-Bus isn't running
-            print("Warning: Could not use async D-Bus: \(error)")
+            print("Warning: Could not connect to session bus: \(error)")
         }
     }
     #else
