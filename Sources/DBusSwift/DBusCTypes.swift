@@ -14,45 +14,85 @@ import Foundation
 /// Boolean type used by D-Bus C API.
 ///
 /// Maps to the `dbus_bool_t` type in the D-Bus C library.
-public typealias DBusBool = dbus_bool_t
+internal typealias DBusBool = dbus_bool_t
 
 /// 32-bit signed integer type used by D-Bus C API.
 ///
 /// Maps to the `dbus_int32_t` type in the D-Bus C library.
-public typealias DBusInt32 = Int32
+internal typealias DBusInt32 = Int32
 
 /// 32-bit unsigned integer type used by D-Bus C API.
 ///
 /// Maps to the `dbus_uint32_t` type in the D-Bus C library.
-public typealias DBusUInt32 = UInt32
+internal typealias DBusUInt32 = UInt32
 
 /// D-Bus message type constants.
 ///
 /// These constants define the different types of messages that can be sent over D-Bus.
+/// D-Bus is a message bus system that allows applications to communicate with one another.
+/// It uses a binary protocol for efficient message passing between processes.
+///
+/// Message types are fundamental to D-Bus communication, as they determine how a message
+/// is handled by the bus and receiving applications. Each message type serves a specific
+/// purpose in the D-Bus communication model:
+///
+/// - Method calls initiate requests to objects
+/// - Method returns provide successful responses
+/// - Error messages indicate failures
+/// - Signals broadcast events to interested listeners
+///
+/// Understanding these message types is essential for properly implementing D-Bus
+/// communication in your application.
 public enum DBusMessageType: Int32, Equatable, Sendable {
     /// Represents an invalid message type.
     ///
     /// Used to indicate an error or uninitialized message.
+    /// Messages with this type should not be sent on the bus and typically
+    /// indicate a programming error if encountered.
     case invalid = 0
     
     /// Represents a method call message.
     ///
     /// Method calls are sent by clients to servers to invoke methods on objects.
+    /// They contain a destination, path, interface, and method name, along with
+    /// any arguments required by the method. Method calls typically expect a
+    /// response in the form of a method return or error message.
+    ///
+    /// Example: A client application calling the `ListNames` method on the
+    /// D-Bus name service to get a list of available services.
     case methodCall = 1
     
     /// Represents a method return message.
     ///
     /// Method returns are sent in response to method calls when the method completes successfully.
+    /// They contain any return values from the method. Each method return corresponds to
+    /// a specific method call and includes a reference to the serial number of that call.
+    ///
+    /// Example: The D-Bus name service responding to a `ListNames` call with
+    /// an array of available service names.
     case methodReturn = 2
     
     /// Represents an error message.
     ///
     /// Error messages are sent in response to method calls when an error occurs.
+    /// They contain an error name, a human-readable error message, and possibly
+    /// additional error details. Like method returns, each error message corresponds
+    /// to a specific method call and includes a reference to the serial number of that call.
+    ///
+    /// Example: The D-Bus name service responding with an "AccessDenied" error
+    /// when a client tries to call a method it doesn't have permission to use.
     case error = 3
     
     /// Represents a signal message.
     ///
     /// Signals are sent by servers to notify clients of events.
+    /// Unlike method calls, signals do not expect a response. They are broadcast
+    /// to all interested clients that have registered to receive them. Signals
+    /// contain a path, interface, and signal name, along with any data associated
+    /// with the event.
+    ///
+    /// Example: A battery service broadcasting a "LowBattery" signal when the
+    /// system's battery level drops below a certain threshold.
     case signal = 4
     
     /// Returns the C type constant for this message type.
@@ -66,24 +106,59 @@ public enum DBusMessageType: Int32, Equatable, Sendable {
 /// D-Bus bus type constants.
 ///
 /// These constants define the different types of buses available in D-Bus.
+/// D-Bus typically provides several standard buses, each serving a different purpose
+/// in the system's communication architecture. The bus type determines the scope and
+/// security context of the communication.
+///
+/// D-Bus buses act as message routers that deliver messages between applications.
+/// Each bus type has different security properties, visibility, and intended use cases:
+///
+/// - The system bus connects system services and privileged applications
+/// - The session bus connects user applications within a login session
+/// - The starter bus is a special bus created by the application that started the message bus
+///
+/// Applications connect to these buses to communicate with other applications or
+/// system services in a standardized way.
 public enum DBusBusType: Int32 {
-    /// Represents the session bus.
+    /// Represents the session-specific D-Bus bus.
     ///
-    /// The session bus is a per-user-login-session bus used for communication between
-    /// applications that belong to the same user.
-    case session = 1
+    /// The session bus is specific to a user login session and is used for communication
+    /// between user applications. Each user session has its own session bus instance,
+    /// providing isolation between different users.
+    ///
+    /// The session bus is typically used for:
+    /// - Desktop integration
+    /// - Application-to-application communication
+    /// - User notifications
+    /// - Session management
+    ///
+    /// The session bus is accessible to all applications running in the user's session.
+    case session = 0
     
-    /// Represents the system bus.
+    /// Represents the system-wide D-Bus bus.
     ///
-    /// The system bus is a system-wide bus used for system-level communication,
-    /// typically between system services and user applications.
-    case system = 2
+    /// The system bus is a global bus that spans the entire system and is typically
+    /// used by system services and privileged applications. It is persistent across
+    /// user sessions and provides access to system-level functionality.
+    ///
+    /// The system bus is typically used for:
+    /// - Hardware management (power, network, bluetooth)
+    /// - System configuration
+    /// - Security services
+    /// - System-wide notifications
+    ///
+    /// Access to services on the system bus is typically restricted by security policies.
+    case system = 1
     
-    /// Represents the starter bus.
+    /// Represents the bus that started the connection.
     ///
-    /// The starter bus is the bus that started the application, which could be
-    /// either the session bus or the system bus.
-    case starter = 3
+    /// The starter bus is a special case that refers to the bus that the application
+    /// was launched from. This is useful for applications that can be launched from
+    /// either the system or session bus and need to communicate back to the launching bus.
+    ///
+    /// This is less commonly used than the system and session buses, but provides
+    /// flexibility for applications that can operate in multiple contexts.
+    case starter = 2
 }
 
 /// Swift wrapper for D-Bus type constants.

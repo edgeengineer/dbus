@@ -48,6 +48,8 @@ brew services start dbus
 
 Note that while the library can be built on macOS for development purposes, some functionality may be limited compared to Linux. The test suite automatically skips D-Bus-specific tests on macOS.
 
+Important: If you're working on this codebase on a macOS machine, you will need to install D-Bus and start the D-Bus daemon as described above or else the tests will fail.
+
 #### Other Platforms
 Other platforms like Windows are not currently supported for running D-Bus, but the package can still be built on these platforms for cross-compilation purposes.
 
@@ -124,6 +126,8 @@ if let services = result.first as? [String] {
 ### Using Combine Extensions
 
 DBusSwift provides Combine extensions for reactive programming on Apple platforms. These extensions are conditionally compiled and only available when Combine is supported.
+
+You will need to install dbus with `homebrew install dbus` and run it in the background with `brew services start dbus`.
 
 ```swift
 import DBusSwift
