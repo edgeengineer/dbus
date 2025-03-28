@@ -13,9 +13,16 @@ struct DBusSwiftTests {
             method: "ListNames"
         )
         
+        // Verify message type using raw value comparison
         let messageType = msg.getMessageType()
-        let expectedType: DBusMessageType = .methodCall
-        #expect(messageType.rawValue == expectedType.rawValue)
+        let expectedRawValue = DBUS_MESSAGE_TYPE_METHOD_CALL
+        #expect(messageType.rawValue == expectedRawValue)
+        
+        // Verify message properties
+        #expect(msg.getDestination() == "org.freedesktop.DBus")
+        #expect(msg.getPath() == "/org/freedesktop/DBus")
+        #expect(msg.getInterface() == "org.freedesktop.DBus")
+        #expect(msg.getMember() == "ListNames")
         #else
         // Skip test on non-Linux platforms
         print("Skipping D-Bus tests on non-Linux platform")
@@ -31,9 +38,15 @@ struct DBusSwiftTests {
             name: "ExampleSignal"
         )
         
+        // Verify message type using raw value comparison
         let messageType = msg.getMessageType()
-        let expectedType: DBusMessageType = .signal
-        #expect(messageType.rawValue == expectedType.rawValue)
+        let expectedRawValue = DBUS_MESSAGE_TYPE_SIGNAL
+        #expect(messageType.rawValue == expectedRawValue)
+        
+        // Verify message properties
+        #expect(msg.getPath() == "/org/example/Path")
+        #expect(msg.getInterface() == "org.example.Interface")
+        #expect(msg.getMember() == "ExampleSignal")
         #else
         // Skip test on non-Linux platforms
         print("Skipping D-Bus tests on non-Linux platform")
