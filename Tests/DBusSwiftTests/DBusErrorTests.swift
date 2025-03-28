@@ -22,8 +22,8 @@ struct DBusErrorTests {
         #expect(error.name == "org.example.Error.Test")
         #expect(error.message == "Test error message")
         
-        // Free the error
-        error.free()
+        // Clear the error
+        error.clear()
         
         // Check that the error is cleared
         #expect(!error.isSet)
@@ -31,7 +31,7 @@ struct DBusErrorTests {
         #expect(error.message == nil)
     }
     
-    /// Tests the clearError method of the DBusError class.
+    /// Tests the clear method of the DBusError class.
     @Test("DBusError Clear")
     func testDBusErrorClear() throws {
         let error = DBusError()
@@ -41,7 +41,7 @@ struct DBusErrorTests {
         #expect(error.isSet)
         
         // Clear the error
-        error.clearError()
+        error.clear()
         
         // Check that the error is cleared
         #expect(!error.isSet)

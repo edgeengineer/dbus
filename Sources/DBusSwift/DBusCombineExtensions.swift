@@ -58,16 +58,9 @@ public extension DBusConnection {
                                 // Check if it matches our criteria
                                 guard receivedMsg.getMessageType() == .signal else { return }
                                 
-                                // Extract interface and member from the message
-                                guard let msgPtr = receivedMsg.getMessage() else { return }
-                                
-                                // Get interface and member
-                                let cInterface = dbus_message_get_interface(msgPtr)
-                                let cMember = dbus_message_get_member(msgPtr)
-                                
-                                // Convert to Swift strings
-                                let messageInterface = cInterface.map { String(cString: $0) } ?? ""
-                                let messageMember = cMember.map { String(cString: $0) } ?? ""
+                                // Get interface and member from the message using accessor methods
+                                guard let messageInterface = receivedMsg.interface,
+                                      let messageMember = receivedMsg.member else { return }
                                 
                                 // Check if it matches our criteria
                                 if messageInterface == interface && messageMember == member {
@@ -200,12 +193,12 @@ public extension DBusAsync {
                 promise(.success(publisher))
             }
         }
-        .flatMap { $0 }
+        .switchToLatest()
         .eraseToAnyPublisher()
     }
     
     // Helper function to convert Any to Sendable
-    private func convertToSendable(_ value: Any) -> any Sendable {
+    private func convertToSendable(_ value: Any) -> Sendable {
         switch value {
         case let val as String:
             return val

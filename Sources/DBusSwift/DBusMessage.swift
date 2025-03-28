@@ -1,8 +1,8 @@
 import CDBus
 #if os(Linux)
 import Glibc // Import Glibc for strdup, free, etc. on Linux
-#elseif os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
-import Darwin // On Apple platforms, these are often in Darwin or implicitly via Foundation
+#elseif os(macOS)
+import Darwin // On macOS, these are in Darwin
 #endif
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -18,7 +18,8 @@ public class DBusMessage {
     /// Initializes a new D-Bus message
     /// - Parameter type: The message type
     public init(type: DBusMessageType) {
-        message = dbus_message_new(type.rawValue)
+        let messageType = type.rawValue
+        message = dbus_message_new(messageType)
         freeOnDeinit = true
     }
     
@@ -26,9 +27,13 @@ public class DBusMessage {
     /// - Parameters:
     ///   - message: The D-Bus message pointer
     ///   - freeOnDeinit: Whether to free the message when this object is deallocated
-    public init(message: OpaquePointer, freeOnDeinit: Bool = false) {
+    public init(message: OpaquePointer?, freeOnDeinit: Bool = true) {
         self.message = message
         self.freeOnDeinit = freeOnDeinit
+        
+        if freeOnDeinit, let message = message {
+            dbus_message_ref(message)
+        }
     }
     
     /// Creates a new method call message
@@ -96,22 +101,89 @@ public class DBusMessage {
         return DBusMessageType(rawValue: type) ?? .invalid
     }
     
+    /// Gets the interface of the message
+    public var interface: String? {
+        get {
+            guard let message = message else {
+                return nil
+            }
+            
+            guard let cInterface = dbus_message_get_interface(message) else {
+                return nil
+            }
+            
+            return String(cString: cInterface)
+        }
+    }
+    
+    /// Gets the member (method or signal name) of the message
+    public var member: String? {
+        get {
+            guard let message = message else {
+                return nil
+            }
+            
+            guard let cMember = dbus_message_get_member(message) else {
+                return nil
+            }
+            
+            return String(cString: cMember)
+        }
+    }
+    
+    /// Gets the path of the message
+    public var path: String? {
+        get {
+            guard let message = message else {
+                return nil
+            }
+            
+            guard let cPath = dbus_message_get_path(message) else {
+                return nil
+            }
+            
+            return String(cString: cPath)
+        }
+    }
+    
     /// Gets the destination of the message
-    /// - Returns: The destination or nil if not set
+    public var destination: String? {
+        get {
+            guard let message = message else {
+                return nil
+            }
+            
+            guard let cDestination = dbus_message_get_destination(message) else {
+                return nil
+            }
+            
+            return String(cString: cDestination)
+        }
+    }
+    
+    /// Gets the sender of the message
+    public var sender: String? {
+        get {
+            guard let message = message else {
+                return nil
+            }
+            
+            guard let cSender = dbus_message_get_sender(message) else {
+                return nil
+            }
+            
+            return String(cString: cSender)
+        }
+    }
+    
+    /// Gets the destination of the message
+    /// - Returns: The destination of the message, or nil if not set
     public func getDestination() -> String? {
-        guard let message = message else {
-            return nil
-        }
-        
-        guard let cString = dbus_message_get_destination(message) else {
-            return nil
-        }
-        
-        return String(cString: cString)
+        return destination
     }
     
     /// Sets the destination of the message
-    /// - Parameter destination: The destination
+    /// - Parameter destination: The destination to set
     /// - Returns: true if successful, false otherwise
     @discardableResult
     public func setDestination(_ destination: String) -> Bool {
@@ -119,27 +191,19 @@ public class DBusMessage {
             return false
         }
         
-        return destination.withCString { cString in
-            dbus_message_set_destination(message, cString) != 0
+        return destination.withCString { cDestination in
+            dbus_message_set_destination(message, cDestination) != 0
         }
     }
     
     /// Gets the path of the message
-    /// - Returns: The path or nil if not set
+    /// - Returns: The path of the message, or nil if not set
     public func getPath() -> String? {
-        guard let message = message else {
-            return nil
-        }
-        
-        guard let cString = dbus_message_get_path(message) else {
-            return nil
-        }
-        
-        return String(cString: cString)
+        return path
     }
     
     /// Sets the path of the message
-    /// - Parameter path: The path
+    /// - Parameter path: The path to set
     /// - Returns: true if successful, false otherwise
     @discardableResult
     public func setPath(_ path: String) -> Bool {
@@ -147,27 +211,19 @@ public class DBusMessage {
             return false
         }
         
-        return path.withCString { cString in
-            dbus_message_set_path(message, cString) != 0
+        return path.withCString { cPath in
+            dbus_message_set_path(message, cPath) != 0
         }
     }
     
     /// Gets the interface of the message
-    /// - Returns: The interface or nil if not set
+    /// - Returns: The interface of the message, or nil if not set
     public func getInterface() -> String? {
-        guard let message = message else {
-            return nil
-        }
-        
-        guard let cString = dbus_message_get_interface(message) else {
-            return nil
-        }
-        
-        return String(cString: cString)
+        return interface
     }
     
     /// Sets the interface of the message
-    /// - Parameter interface: The interface
+    /// - Parameter interface: The interface to set
     /// - Returns: true if successful, false otherwise
     @discardableResult
     public func setInterface(_ interface: String) -> Bool {
@@ -175,27 +231,19 @@ public class DBusMessage {
             return false
         }
         
-        return interface.withCString { cString in
-            dbus_message_set_interface(message, cString) != 0
+        return interface.withCString { cInterface in
+            dbus_message_set_interface(message, cInterface) != 0
         }
     }
     
     /// Gets the member of the message
-    /// - Returns: The member or nil if not set
+    /// - Returns: The member of the message, or nil if not set
     public func getMember() -> String? {
-        guard let message = message else {
-            return nil
-        }
-        
-        guard let cString = dbus_message_get_member(message) else {
-            return nil
-        }
-        
-        return String(cString: cString)
+        return member
     }
     
     /// Sets the member of the message
-    /// - Parameter member: The member
+    /// - Parameter member: The member to set
     /// - Returns: true if successful, false otherwise
     @discardableResult
     public func setMember(_ member: String) -> Bool {
@@ -203,27 +251,19 @@ public class DBusMessage {
             return false
         }
         
-        return member.withCString { cString in
-            dbus_message_set_member(message, cString) != 0
+        return member.withCString { cMember in
+            dbus_message_set_member(message, cMember) != 0
         }
     }
     
     /// Gets the sender of the message
-    /// - Returns: The sender or nil if not set
+    /// - Returns: The sender of the message, or nil if not set
     public func getSender() -> String? {
-        guard let message = message else {
-            return nil
-        }
-        
-        guard let cString = dbus_message_get_sender(message) else {
-            return nil
-        }
-        
-        return String(cString: cString)
+        return sender
     }
     
     /// Sets the sender of the message
-    /// - Parameter sender: The sender
+    /// - Parameter sender: The sender to set
     /// - Returns: true if successful, false otherwise
     @discardableResult
     public func setSender(_ sender: String) -> Bool {
@@ -231,8 +271,8 @@ public class DBusMessage {
             return false
         }
         
-        return sender.withCString { cString in
-            dbus_message_set_sender(message, cString) != 0
+        return sender.withCString { cSender in
+            dbus_message_set_sender(message, cSender) != 0
         }
     }
     
@@ -327,7 +367,7 @@ public class DBusMessage {
         case "y": // byte
             if let value = arg as? UInt8 {
                 var val = value
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_BYTE, &val) == 0 {
+                if dbus_message_iter_append_basic(&iter, DBusType.byte.rawValue, &val) == 0 {
                     throw DBusConnectionError.messageFailed("Failed to append byte")
                 }
             } else {
@@ -337,7 +377,7 @@ public class DBusMessage {
         case "b": // boolean
             if let value = arg as? Bool {
                 var val: DBusBool = value ? 1 : 0
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_BOOLEAN, &val) == 0 {
+                if dbus_message_iter_append_basic(&iter, DBusType.boolean.rawValue, &val) == 0 {
                     throw DBusConnectionError.messageFailed("Failed to append boolean")
                 }
             } else {
@@ -347,7 +387,7 @@ public class DBusMessage {
         case "n": // int16
             if let value = arg as? Int16 {
                 var val = value
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT16, &val) == 0 {
+                if dbus_message_iter_append_basic(&iter, DBusType.int16.rawValue, &val) == 0 {
                     throw DBusConnectionError.messageFailed("Failed to append int16")
                 }
             } else {
@@ -357,7 +397,7 @@ public class DBusMessage {
         case "q": // uint16
             if let value = arg as? UInt16 {
                 var val = value
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT16, &val) == 0 {
+                if dbus_message_iter_append_basic(&iter, DBusType.uint16.rawValue, &val) == 0 {
                     throw DBusConnectionError.messageFailed("Failed to append uint16")
                 }
             } else {
@@ -367,7 +407,7 @@ public class DBusMessage {
         case "i": // int32
             if let value = arg as? Int32 {
                 var val = value
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &val) == 0 {
+                if dbus_message_iter_append_basic(&iter, DBusType.int32.rawValue, &val) == 0 {
                     throw DBusConnectionError.messageFailed("Failed to append int32")
                 }
             } else {
@@ -377,7 +417,7 @@ public class DBusMessage {
         case "u": // uint32
             if let value = arg as? UInt32 {
                 var val = value
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &val) == 0 {
+                if dbus_message_iter_append_basic(&iter, DBusType.uint32.rawValue, &val) == 0 {
                     throw DBusConnectionError.messageFailed("Failed to append uint32")
                 }
             } else {
@@ -387,7 +427,7 @@ public class DBusMessage {
         case "x": // int64
             if let value = arg as? Int64 {
                 var val = value
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT64, &val) == 0 {
+                if dbus_message_iter_append_basic(&iter, DBusType.int64.rawValue, &val) == 0 {
                     throw DBusConnectionError.messageFailed("Failed to append int64")
                 }
             } else {
@@ -397,7 +437,7 @@ public class DBusMessage {
         case "t": // uint64
             if let value = arg as? UInt64 {
                 var val = value
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT64, &val) == 0 {
+                if dbus_message_iter_append_basic(&iter, DBusType.uint64.rawValue, &val) == 0 {
                     throw DBusConnectionError.messageFailed("Failed to append uint64")
                 }
             } else {
@@ -407,7 +447,7 @@ public class DBusMessage {
         case "d": // double
             if let value = arg as? Double {
                 var val = value
-                if dbus_message_iter_append_basic(&iter, DBUS_TYPE_DOUBLE, &val) == 0 {
+                if dbus_message_iter_append_basic(&iter, DBusType.double.rawValue, &val) == 0 {
                     throw DBusConnectionError.messageFailed("Failed to append double")
                 }
             } else {
@@ -419,7 +459,7 @@ public class DBusMessage {
                 // Use a simpler approach with withCString that works on both platforms
                 var success = false
                 value.withCString { cString in
-                    success = dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, cString) != 0
+                    success = dbus_message_iter_append_basic(&iter, DBusType.string.rawValue, cString) != 0
                 }
                 if !success {
                     throw DBusConnectionError.messageFailed("Failed to append string")
@@ -433,7 +473,7 @@ public class DBusMessage {
                 // Use a simpler approach with withCString that works on both platforms
                 var success = false
                 value.withCString { cString in
-                    success = dbus_message_iter_append_basic(&iter, DBUS_TYPE_OBJECT_PATH, cString) != 0
+                    success = dbus_message_iter_append_basic(&iter, DBusType.objectPath.rawValue, cString) != 0
                 }
                 if !success {
                     throw DBusConnectionError.messageFailed("Failed to append object path")
@@ -447,7 +487,7 @@ public class DBusMessage {
                 // Use a simpler approach with withCString that works on both platforms
                 var success = false
                 value.withCString { cString in
-                    success = dbus_message_iter_append_basic(&iter, DBUS_TYPE_SIGNATURE, cString) != 0
+                    success = dbus_message_iter_append_basic(&iter, DBusType.signature.rawValue, cString) != 0
                 }
                 if !success {
                     throw DBusConnectionError.messageFailed("Failed to append signature")
@@ -465,7 +505,7 @@ public class DBusMessage {
     private func extractArgFromIter(iter: inout DBusMessageIter, typeChar: Character) throws -> Any? {
         let type = dbus_message_iter_get_arg_type(&iter)
         
-        if type == DBUS_TYPE_INVALID {
+        if type == DBusType.invalid.rawValue {
             return nil
         }
         
@@ -533,61 +573,61 @@ public class DBusMessage {
         switch arg {
         case let value as UInt8:
             var val = value
-            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_BYTE, &val) == 0 {
+            if dbus_message_iter_append_basic(&iter, DBusType.byte.rawValue, &val) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to append byte")
             }
             
         case let value as Bool:
             var val: DBusBool = value ? 1 : 0
-            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_BOOLEAN, &val) == 0 {
+            if dbus_message_iter_append_basic(&iter, DBusType.boolean.rawValue, &val) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to append boolean")
             }
             
         case let value as Int16:
             var val = value
-            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT16, &val) == 0 {
+            if dbus_message_iter_append_basic(&iter, DBusType.int16.rawValue, &val) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to append int16")
             }
             
         case let value as UInt16:
             var val = value
-            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT16, &val) == 0 {
+            if dbus_message_iter_append_basic(&iter, DBusType.uint16.rawValue, &val) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to append uint16")
             }
             
         case let value as Int32:
             var val = value
-            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &val) == 0 {
+            if dbus_message_iter_append_basic(&iter, DBusType.int32.rawValue, &val) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to append int32")
             }
             
         case let value as Int:
             var val = Int32(value)
-            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &val) == 0 {
+            if dbus_message_iter_append_basic(&iter, DBusType.int32.rawValue, &val) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to append int32")
             }
             
         case let value as UInt32:
             var val = value
-            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &val) == 0 {
+            if dbus_message_iter_append_basic(&iter, DBusType.uint32.rawValue, &val) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to append uint32")
             }
             
         case let value as Int64:
             var val = value
-            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT64, &val) == 0 {
+            if dbus_message_iter_append_basic(&iter, DBusType.int64.rawValue, &val) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to append int64")
             }
             
         case let value as UInt64:
             var val = value
-            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT64, &val) == 0 {
+            if dbus_message_iter_append_basic(&iter, DBusType.uint64.rawValue, &val) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to append uint64")
             }
             
         case let value as Double:
             var val = value
-            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_DOUBLE, &val) == 0 {
+            if dbus_message_iter_append_basic(&iter, DBusType.double.rawValue, &val) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to append double")
             }
             
@@ -595,26 +635,24 @@ public class DBusMessage {
             // Use withCString for better cross-platform compatibility
             var success = false
             value.withCString { cString in
-                success = dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, cString) != 0
+                success = dbus_message_iter_append_basic(&iter, DBusType.string.rawValue, cString) != 0
             }
             if !success {
                 throw DBusConnectionError.messageFailed("Failed to append string")
             }
             
         case let value as [String]:
-            // Handle string arrays
+            // Create an array iterator
             var subIter = DBusMessageIter()
-            
-            // Create array container with signature "as"
-            if dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "s", &subIter) == 0 {
+            if dbus_message_iter_open_container(&iter, DBusType.array.rawValue, "s", &subIter) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to open array container")
             }
             
-            // Append each string
-            for str in value {
+            // Append each string to the array
+            for string in value {
                 var success = false
-                str.withCString { cString in
-                    success = dbus_message_iter_append_basic(&subIter, DBUS_TYPE_STRING, cString) != 0
+                string.withCString { cString in
+                    success = dbus_message_iter_append_basic(&subIter, DBusType.string.rawValue, cString) != 0
                 }
                 if !success {
                     dbus_message_iter_close_container(&iter, &subIter)
@@ -622,7 +660,7 @@ public class DBusMessage {
                 }
             }
             
-            // Close the container
+            // Close the array container
             if dbus_message_iter_close_container(&iter, &subIter) == 0 {
                 throw DBusConnectionError.messageFailed("Failed to close array container")
             }

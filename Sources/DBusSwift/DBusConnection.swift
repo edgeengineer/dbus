@@ -39,13 +39,6 @@ public enum DBusConnectionError: Error, CustomStringConvertible {
     }
 }
 
-/// Swift wrapper for D-Bus bus types
-public enum DBusBusType: Int32 {
-    case session = 0    // DBUS_BUS_SESSION
-    case system = 1     // DBUS_BUS_SYSTEM
-    case starter = 2    // DBUS_BUS_STARTER
-}
-
 /// Represents a connection to a D-Bus bus
 public final class DBusConnection: @unchecked Sendable {
     private var connection: OpaquePointer?
@@ -61,19 +54,8 @@ public final class DBusConnection: @unchecked Sendable {
         var cError = CDBus.DBusError()
         dbus_error_init(&cError)
         
-        // Connect to the bus using the appropriate bus type value
-        let busTypeValue: Int32
-        switch busType {
-        case .session:
-            busTypeValue = DBUS_BUS_SESSION
-        case .system:
-            busTypeValue = DBUS_BUS_SYSTEM
-        case .starter:
-            busTypeValue = DBUS_BUS_STARTER
-        }
-        
-        // Use the wrapper function that takes Int32 and DBusError
-        connection = _dbus_bus_get(busTypeValue, &cError)
+        // Connect to the bus using the enum's raw value directly
+        connection = _dbus_bus_get(busType.rawValue, &cError)
         
         // Check for errors
         if dbus_error_is_set(&cError) != 0 {

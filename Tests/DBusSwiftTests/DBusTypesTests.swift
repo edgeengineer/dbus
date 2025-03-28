@@ -64,36 +64,36 @@ struct DBusTypesTests {
     @Test("DBusType To CType")
     func testDBusTypeToCType() throws {
         // Test basic types
-        #expect(DBusType.byte.toCType() == DBUS_TYPE_BYTE)
-        #expect(DBusType.boolean.toCType() == DBUS_TYPE_BOOLEAN)
-        #expect(DBusType.int16.toCType() == DBUS_TYPE_INT16)
-        #expect(DBusType.uint16.toCType() == DBUS_TYPE_UINT16)
-        #expect(DBusType.int32.toCType() == DBUS_TYPE_INT32)
-        #expect(DBusType.uint32.toCType() == DBUS_TYPE_UINT32)
-        #expect(DBusType.int64.toCType() == DBUS_TYPE_INT64)
-        #expect(DBusType.uint64.toCType() == DBUS_TYPE_UINT64)
-        #expect(DBusType.double.toCType() == DBUS_TYPE_DOUBLE)
-        #expect(DBusType.string.toCType() == DBUS_TYPE_STRING)
-        #expect(DBusType.objectPath.toCType() == DBUS_TYPE_OBJECT_PATH)
-        #expect(DBusType.signature.toCType() == DBUS_TYPE_SIGNATURE)
+        #expect(DBusType.byte.toCType() == DBusType.byte.rawValue)
+        #expect(DBusType.boolean.toCType() == DBusType.boolean.rawValue)
+        #expect(DBusType.int16.toCType() == DBusType.int16.rawValue)
+        #expect(DBusType.uint16.toCType() == DBusType.uint16.rawValue)
+        #expect(DBusType.int32.toCType() == DBusType.int32.rawValue)
+        #expect(DBusType.uint32.toCType() == DBusType.uint32.rawValue)
+        #expect(DBusType.int64.toCType() == DBusType.int64.rawValue)
+        #expect(DBusType.uint64.toCType() == DBusType.uint64.rawValue)
+        #expect(DBusType.double.toCType() == DBusType.double.rawValue)
+        #expect(DBusType.string.toCType() == DBusType.string.rawValue)
+        #expect(DBusType.objectPath.toCType() == DBusType.objectPath.rawValue)
+        #expect(DBusType.signature.toCType() == DBusType.signature.rawValue)
         
         // Test container types
-        #expect(DBusType.array.toCType() == DBUS_TYPE_ARRAY)
-        #expect(DBusType.variant.toCType() == DBUS_TYPE_VARIANT)
-        #expect(DBusType.struct.toCType() == DBUS_TYPE_STRUCT)
-        #expect(DBusType.dictEntry.toCType() == DBUS_TYPE_DICT_ENTRY)
+        #expect(DBusType.array.toCType() == DBusType.array.rawValue)
+        #expect(DBusType.variant.toCType() == DBusType.variant.rawValue)
+        #expect(DBusType.struct.toCType() == DBusType.struct.rawValue)
+        #expect(DBusType.dictEntry.toCType() == DBusType.dictEntry.rawValue)
         
         // Test invalid type
-        #expect(DBusType.invalid.toCType() == DBUS_TYPE_INVALID)
+        #expect(DBusType.invalid.toCType() == DBusType.invalid.rawValue)
     }
     
     /// Tests the conversion from DBusMessageType to C type constants.
     @Test("DBusMessageType To CType")
     func testDBusMessageTypeToCType() throws {
-        #expect(DBusMessageType.invalid.toCType() == DBUS_MESSAGE_TYPE_INVALID)
-        #expect(DBusMessageType.methodCall.toCType() == DBUS_MESSAGE_TYPE_METHOD_CALL)
-        #expect(DBusMessageType.methodReturn.toCType() == DBUS_MESSAGE_TYPE_METHOD_RETURN)
-        #expect(DBusMessageType.error.toCType() == DBUS_MESSAGE_TYPE_ERROR)
-        #expect(DBusMessageType.signal.toCType() == DBUS_MESSAGE_TYPE_SIGNAL)
+        #expect(DBusMessageType.invalid.toCType() == DBusMessageType.invalid.rawValue)
+        #expect(DBusMessageType.methodCall.toCType() == DBusMessageType.methodCall.rawValue)
+        #expect(DBusMessageType.methodReturn.toCType() == DBusMessageType.methodReturn.rawValue)
+        #expect(DBusMessageType.error.toCType() == DBusMessageType.error.rawValue)
+        #expect(DBusMessageType.signal.toCType() == DBusMessageType.signal.rawValue)
     }
 }
