@@ -15,13 +15,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        swift: ["6.0.3"]
+        swift: ["6.0.0"]
     steps:
     - uses: actions/checkout@v4
     
     # Use the official Swift setup action
     - name: Setup Swift
-      uses: swift-actions/setup-swift@v1
+      uses: swift-actions/setup-swift@v2
       with:
         swift-version: ${{ matrix.swift }}
         
