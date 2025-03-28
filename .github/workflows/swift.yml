@@ -17,7 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        # Use Swift 6.0 as required by dependencies
         swift: ["6.0"]
 
     steps:
@@ -32,7 +31,7 @@ jobs:
       run: |
         sudo apt-get update && sudo apt-get install -y \
           gpg dirmngr gzip curl \
-          libatomic1 # Swift dependency
+          libatomic1
         mkdir -p ~/.gnupg
         chmod 700 ~/.gnupg
         echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
@@ -45,30 +44,25 @@ jobs:
         echo "Manually downloading, decompressing, and importing Swift keys..."
         curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
         echo "Import process completed."
-        if gpg --list-keys 'Swift Builders'; then
-          echo "Swift Builders key successfully imported."
+        # Verify key import using the correct key name for Swift 6.x
+        if gpg --list-keys 'Swift 6.x Release Signing Key'; then # Corrected key name
+          echo "Swift 6.x Release Signing key successfully imported/found."
         else
-          echo "WARNING: Swift Builders key not found after import attempt!" >&2
-          exit 1 # Fail if keys didn't import
+          echo "ERROR: Swift 6.x Release Signing Key not found after import attempt!" >&2
+          exit 1 # Fail if the specific key we need wasn't imported
         fi
 
     # 4. (Linux Only) Manually Download, Verify, and Install Swift
-    #    Bypasses setup-swift action due to its internal GPG bug.
     - name: Manually Install Swift (Linux)
       if: runner.os == 'Linux'
       env:
-        SWIFT_VERSION: ${{ matrix.swift }} # Use version from matrix
+        SWIFT_VERSION: ${{ matrix.swift }}
       run: |
-        # Determine Ubuntu version for download URL (assuming ubuntu-latest maps to 24.04/22.04/etc.)
-        # This example explicitly uses 24.04 (Noble Numbat). Adjust if your runner is different.
-        # LSB_RELEASE=$(lsb_release -sr) # Alternative: Detect version dynamically
-        UBUNTU_VERSION="24.04" # Explicitly set for ubuntu-latest as of ~March 2025
+        UBUNTU_VERSION="24.04" # Adjust if ubuntu-latest changes or you use a specific runner
         SWIFT_PLATFORM="ubuntu${UBUNTU_VERSION}"
-
         SWIFT_BRANCH="swift-${SWIFT_VERSION}-release"
         SWIFT_VERSION_TAG="${SWIFT_VERSION}-RELEASE"
         SWIFT_TARBALL_NAME="swift-${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz"
-        # Construct download URL (platform name in path is lowercase)
         SWIFT_DOWNLOAD_URL="https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM,,}/${SWIFT_VERSION_TAG}/${SWIFT_TARBALL_NAME}"
 
         echo "Downloading Swift: ${SWIFT_DOWNLOAD_URL}"
@@ -90,12 +84,11 @@ jobs:
 
         echo "Adding Swift to PATH..."
         SWIFT_PATH="$(pwd)/swift_toolchain/usr/bin"
-        echo "SWIFT_PATH=${SWIFT_PATH}" >> $GITHUB_ENV # Make variable available
-        echo "${SWIFT_PATH}" >> $GITHUB_PATH         # Add to PATH for subsequent steps
+        echo "SWIFT_PATH=${SWIFT_PATH}" >> $GITHUB_ENV
+        echo "${SWIFT_PATH}" >> $GITHUB_PATH
         echo "Swift installed manually to ${SWIFT_PATH}"
 
     # === macOS Setup ===
-    # Use setup-swift action on macOS where it works without GPG issues
     - name: Setup Swift (macOS)
       if: runner.os == 'macOS'
       uses: swift-actions/setup-swift@v2
@@ -103,11 +96,11 @@ jobs:
         swift-version: ${{ matrix.swift }}
 
     # === Common Steps ===
-    # 5. Verify Swift installation (runs on both OS)
+    # 5. Verify Swift installation
     - name: Verify Swift installation
       run: swift --version
 
-    # 6. Install D-Bus dependencies (Platform specific)
+    # 6. Install D-Bus dependencies
     - name: Install D-Bus dependencies (Ubuntu)
       if: runner.os == 'Linux'
       run: |
@@ -125,7 +118,7 @@ jobs:
     - name: Build Package
       run: swift build -c release -v
 
-    # 8. Run tests (Platform specific logic)
+    # 8. Run tests
     - name: Run Tests (Linux)
       if: runner.os == 'Linux'
       run: swift test -v
