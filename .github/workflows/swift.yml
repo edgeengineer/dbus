@@ -24,18 +24,20 @@ jobs:
     - name: Check out repository code
       uses: actions/checkout@v4
 
-    # 2. (Linux Only) Ensure GPG tools are installed and configure dirmngr
-    - name: Ensure GPG/dirmngr and Configure (Linux)
+    # 2. (Linux Only) Ensure GPG, Gzip, Curl tools are installed and configure dirmngr
+    - name: Ensure GPG/Gzip/Curl and Configure (Linux)
       if: runner.os == 'Linux'
       run: |
-        sudo apt-get update && sudo apt-get install -y gpg dirmngr gunzip curl
+        # Update package lists and install necessary tools
+        # Use 'gzip' package which provides the 'gunzip' command
+        sudo apt-get update && sudo apt-get install -y gpg dirmngr gzip curl
+        # Create GPG directory and configure dirmngr
         mkdir -p ~/.gnupg
         chmod 700 ~/.gnupg
         echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
-        echo "GPG, dirmngr, gunzip, curl installed, IPv6 disabled for dirmngr."
+        echo "GPG, dirmngr, gzip, curl installed, IPv6 disabled for dirmngr."
 
     # 3. (Linux Only) WORKAROUND: Manually fetch, decompress, and import Swift keys
-    #    This bypasses the apparent failure of setup-swift to handle gzip encoding.
     - name: Manually Fetch and Import Swift Keys (Linux Workaround)
       if: runner.os == 'Linux'
       run: |
@@ -43,7 +45,6 @@ jobs:
         # Download (-fsSL), decompress (gunzip), import (gpg --import -)
         curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
         echo "Import process completed."
-        # Check GPG's exit code (optional, gpg returns 0 even if no keys processed from stdin sometimes)
         # Verify key import (recommended)
         if gpg --list-keys 'Swift Builders'; then
           echo "Swift Builders key successfully imported."
@@ -53,7 +54,6 @@ jobs:
         fi
 
     # 4. Set up the specified Swift version using the official action
-    #    Hopefully, it detects the key is already imported or skips its own GPG check.
     - name: Setup Swift
       uses: swift-actions/setup-swift@v2
       with:
