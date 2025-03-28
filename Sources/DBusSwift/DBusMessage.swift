@@ -366,7 +366,7 @@ public class DBusMessage {
             var cString: UnsafePointer<CChar>? = nil
             dbus_message_iter_get_basic(&iter, &cString)
             if let cString = cString {
-                return String(cString: cString)
+                return String(validatingCString: cString)
             }
             return nil
             
