@@ -12,11 +12,12 @@ on:
 jobs:
   build-and-test:
     name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }} # Consider ubuntu-22.04 if latest still has issues
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        # Use Swift 6.0 as required by dependencies
         swift: ["6.0"]
 
     steps:
@@ -24,46 +25,89 @@ jobs:
     - name: Check out repository code
       uses: actions/checkout@v4
 
-    # 2. (Linux Only) Ensure GPG, Gzip, Curl tools are installed and configure dirmngr
-    - name: Ensure GPG/Gzip/Curl and Configure (Linux)
+    # === Linux Setup ===
+    # 2. (Linux Only) Ensure prerequisites are installed
+    - name: Ensure Prerequisites (Linux)
       if: runner.os == 'Linux'
       run: |
-        # Update package lists and install necessary tools
-        # Use 'gzip' package which provides the 'gunzip' command
-        sudo apt-get update && sudo apt-get install -y gpg dirmngr gzip curl
-        # Create GPG directory and configure dirmngr
+        sudo apt-get update && sudo apt-get install -y \
+          gpg dirmngr gzip curl \
+          libatomic1 # Swift dependency
         mkdir -p ~/.gnupg
         chmod 700 ~/.gnupg
         echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
-        echo "GPG, dirmngr, gzip, curl installed, IPv6 disabled for dirmngr."
+        echo "Prerequisites installed, GPG configured."
 
-    # 3. (Linux Only) WORKAROUND: Manually fetch, decompress, and import Swift keys
-    - name: Manually Fetch and Import Swift Keys (Linux Workaround)
+    # 3. (Linux Only) Manually fetch, decompress, and import Swift keys
+    - name: Manually Fetch and Import Swift Keys (Linux)
       if: runner.os == 'Linux'
       run: |
         echo "Manually downloading, decompressing, and importing Swift keys..."
-        # Download (-fsSL), decompress (gunzip), import (gpg --import -)
         curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
         echo "Import process completed."
-        # Verify key import (recommended)
         if gpg --list-keys 'Swift Builders'; then
           echo "Swift Builders key successfully imported."
         else
           echo "WARNING: Swift Builders key not found after import attempt!" >&2
-          # Optionally fail the job if key import is critical: exit 1
+          exit 1 # Fail if keys didn't import
         fi
 
-    # 4. Set up the specified Swift version using the official action
-    - name: Setup Swift
+    # 4. (Linux Only) Manually Download, Verify, and Install Swift
+    #    Bypasses setup-swift action due to its internal GPG bug.
+    - name: Manually Install Swift (Linux)
+      if: runner.os == 'Linux'
+      env:
+        SWIFT_VERSION: ${{ matrix.swift }} # Use version from matrix
+      run: |
+        # Determine Ubuntu version for download URL (assuming ubuntu-latest maps to 24.04/22.04/etc.)
+        # This example explicitly uses 24.04 (Noble Numbat). Adjust if your runner is different.
+        # LSB_RELEASE=$(lsb_release -sr) # Alternative: Detect version dynamically
+        UBUNTU_VERSION="24.04" # Explicitly set for ubuntu-latest as of ~March 2025
+        SWIFT_PLATFORM="ubuntu${UBUNTU_VERSION}"
+
+        SWIFT_BRANCH="swift-${SWIFT_VERSION}-release"
+        SWIFT_VERSION_TAG="${SWIFT_VERSION}-RELEASE"
+        SWIFT_TARBALL_NAME="swift-${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz"
+        # Construct download URL (platform name in path is lowercase)
+        SWIFT_DOWNLOAD_URL="https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM,,}/${SWIFT_VERSION_TAG}/${SWIFT_TARBALL_NAME}"
+
+        echo "Downloading Swift: ${SWIFT_DOWNLOAD_URL}"
+        curl -fsSL "${SWIFT_DOWNLOAD_URL}" -o "${SWIFT_TARBALL_NAME}"
+        curl -fsSL "${SWIFT_DOWNLOAD_URL}.sig" -o "${SWIFT_TARBALL_NAME}.sig"
+
+        echo "Verifying Swift download using GPG..."
+        # This relies on keys imported in the previous step
+        if gpg --verify "${SWIFT_TARBALL_NAME}.sig" "${SWIFT_TARBALL_NAME}"; then
+           echo "GPG verification successful."
+        else
+           echo "GPG verification FAILED!" >&2
+           exit 1
+        fi
+
+        echo "Extracting Swift toolchain..."
+        mkdir swift_toolchain
+        tar xzf "${SWIFT_TARBALL_NAME}" -C swift_toolchain --strip-components=1
+
+        echo "Adding Swift to PATH..."
+        SWIFT_PATH="$(pwd)/swift_toolchain/usr/bin"
+        echo "SWIFT_PATH=${SWIFT_PATH}" >> $GITHUB_ENV # Make variable available
+        echo "${SWIFT_PATH}" >> $GITHUB_PATH         # Add to PATH for subsequent steps
+        echo "Swift installed manually to ${SWIFT_PATH}"
+
+    # === macOS Setup ===
+    # Use setup-swift action on macOS where it works without GPG issues
+    - name: Setup Swift (macOS)
+      if: runner.os == 'macOS'
       uses: swift-actions/setup-swift@v2
       with:
         swift-version: ${{ matrix.swift }}
 
-    # 5. Verify the Swift installation
+    # === Common Steps ===
+    # 5. Verify Swift installation (runs on both OS)
     - name: Verify Swift installation
       run: swift --version
 
-    # 6. (Linux Only) Install D-Bus dependencies
+    # 6. Install D-Bus dependencies (Platform specific)
     - name: Install D-Bus dependencies (Ubuntu)
       if: runner.os == 'Linux'
       run: |
@@ -71,24 +115,20 @@ jobs:
         sudo apt-get install -y libdbus-1-dev dbus
         eval $(dbus-launch --auto-syntax)
         echo "D-Bus dependencies installed and session launched."
-
-    # 7. (macOS Only) Install D-Bus runtime
     - name: Install D-Bus (macOS)
       if: runner.os == 'macOS'
       run: |
         brew install dbus
         echo "D-Bus installed via Homebrew (service not started)."
 
-    # 8. Build the Swift package
+    # 7. Build the Swift package
     - name: Build Package
       run: swift build -c release -v
 
-    # 9. (Linux Only) Run tests
+    # 8. Run tests (Platform specific logic)
     - name: Run Tests (Linux)
       if: runner.os == 'Linux'
       run: swift test -v
-
-    # 10. (macOS Only) Skip tests
     - name: Explain Skipped Tests (macOS)
       if: runner.os == 'macOS'
       run: echo "Skipping tests on macOS as they may depend on a D-Bus session environment."
