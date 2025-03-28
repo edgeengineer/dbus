@@ -29,7 +29,8 @@ struct DBusSwiftTests {
             name: "ExampleSignal"
         )
         
-        #expect(msg.getMessageType() == .signal)
+        let messageType = msg.getMessageType()
+        #expect(messageType == .signal)
         #else
         // Skip test on non-Linux platforms
         print("Skipping D-Bus tests on non-Linux platform")
