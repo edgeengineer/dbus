@@ -5,7 +5,7 @@ import Testing
 struct DBusSwiftTests {
     @Test("Message Creation")
     func testMessageCreation() throws {
-        #if os(Linux)
+        #if os(Linux) || (os(macOS) && canImport(CDBus))
         let msg = DBusMessage.createMethodCall(
             destination: "org.freedesktop.DBus",
             path: "/org/freedesktop/DBus",
@@ -31,7 +31,7 @@ struct DBusSwiftTests {
     
     @Test("Signal Creation")
     func testSignalCreation() throws {
-        #if os(Linux)
+        #if os(Linux) || (os(macOS) && canImport(CDBus))
         let msg = DBusMessage.createSignal(
             path: "/org/example/Path",
             interface: "org.example.Interface",
@@ -55,7 +55,7 @@ struct DBusSwiftTests {
     
     @Test("Argument Appending")
     func testArgumentAppending() throws {
-        #if os(Linux)
+        #if os(Linux) || (os(macOS) && canImport(CDBus))
         let msg = DBusMessage(type: .methodCall)
         
         try msg.appendArgs(signature: "sib", args: ["hello", 42, true])
@@ -67,8 +67,8 @@ struct DBusSwiftTests {
         #endif
     }
     
-    #if os(Linux)
-    // Only run this test on Linux with D-Bus installed
+    #if os(Linux) || (os(macOS) && canImport(CDBus))
+    // Only run this test on Linux with D-Bus installed or macOS with Homebrew D-Bus
     @Test("System Bus Connection")
     func testSystemBusConnection() async throws {
         do {

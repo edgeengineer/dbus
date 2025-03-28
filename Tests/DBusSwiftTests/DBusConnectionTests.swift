@@ -4,7 +4,7 @@ import Testing
 /// Tests for the DBusConnection class and related functionality.
 @Suite("DBusConnection Tests")
 struct DBusConnectionTests {
-    #if os(Linux)
+    #if os(Linux) || (os(macOS) && canImport(CDBus))
     /// Tests connecting to the session bus.
     @Test("Session Bus Connection")
     func testSessionBusConnection() throws {

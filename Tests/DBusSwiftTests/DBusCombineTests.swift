@@ -1,14 +1,13 @@
 import Testing
 @testable import DBusSwift
 
-#if os(Linux) && canImport(Combine)
+#if (os(Linux) || os(macOS)) && canImport(Combine) && canImport(CDBus)
 import Combine
 
 @Suite("D-Bus Combine Extensions Tests")
 struct DBusCombineTests {
     @Test("Test Call Publisher")
     func testCallPublisher() async throws {
-        #if os(Linux)
         // Create a cancellable set to store our subscriptions
         var cancellables = Set<AnyCancellable>()
         
@@ -49,14 +48,10 @@ struct DBusCombineTests {
         
         // Wait for the expectation to be fulfilled
         try await expectation.fulfill(timeout: .seconds(5))
-        #else
-        print("Skipping D-Bus Combine tests on non-Linux platform")
-        #endif
     }
     
     @Test("Test Signal Publisher")
     func testSignalPublisher() async throws {
-        #if os(Linux)
         // This test is more complex as it requires setting up a signal emitter
         // and then listening for the signal with the publisher
         
@@ -105,9 +100,6 @@ struct DBusCombineTests {
         
         // Wait for the expectation to be fulfilled
         try await expectation.fulfill(timeout: .seconds(5))
-        #else
-        print("Skipping D-Bus Combine tests on non-Linux platform")
-        #endif
     }
 }
 #else
@@ -115,7 +107,7 @@ struct DBusCombineTests {
 struct DBusCombineTests {
     @Test("Skip Combine Tests")
     func testSkipCombineTests() {
-        print("Skipping D-Bus Combine tests: requires Linux and Combine support")
+        print("Skipping D-Bus Combine tests: requires Linux/macOS with D-Bus and Combine support")
     }
 }
 #endif

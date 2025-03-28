@@ -4,7 +4,7 @@ import Testing
 /// Tests for the DBusMessage class and related functionality.
 @Suite("DBusMessage Tests")
 struct DBusMessageTests {
-    #if os(Linux)
+    #if os(Linux) || (os(macOS) && canImport(CDBus))
     /// Tests the creation of different message types.
     @Test("Message Type Creation")
     func testMessageTypeCreation() throws {
