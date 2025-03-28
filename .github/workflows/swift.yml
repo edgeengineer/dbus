@@ -33,7 +33,7 @@ jobs:
           libcurl4 \
           libedit2 \
           libgcc-9-dev \
-          libpython3.8 \
+          libpython3-dev \
           libsqlite3-0 \
           libstdc++-9-dev \
           libxml2-dev \
@@ -44,14 +44,15 @@ jobs:
         
         # Download and install Swift
         SWIFT_VERSION=${{ matrix.swift }}
+        # Use Ubuntu 22.04 toolchain since 24.04 isn't officially supported yet
         SWIFT_PLATFORM=ubuntu2204
         SWIFT_BRANCH=swift-${SWIFT_VERSION}-release
-        SWIFT_VERSION_UPPER=$(echo $SWIFT_VERSION | tr '[:lower:]' '[:upper:]')
         SWIFT_URL=https://download.swift.org/${SWIFT_BRANCH}/$(echo ${SWIFT_PLATFORM} | tr -d .)/swift-${SWIFT_VERSION}-${SWIFT_BRANCH}/swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM}.tar.gz
         
-        wget -q ${SWIFT_URL}
-        tar xzf swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM}.tar.gz --directory=/tmp
-        sudo mv /tmp/swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM} /usr/share/swift
+        echo "Downloading Swift from: ${SWIFT_URL}"
+        wget ${SWIFT_URL}
+        tar xzf swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM}.tar.gz
+        sudo mv swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM} /usr/share/swift
         echo "export PATH=/usr/share/swift/usr/bin:$PATH" >> ~/.bashrc
         export PATH=/usr/share/swift/usr/bin:$PATH
         
