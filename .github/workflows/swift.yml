@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, macos-latest]
-        swift: ["6.0.3"] # Use specific release version
+        swift: ["6.0.0"] # Use specific release version
 
     steps:
     # 1. Check out repository code
@@ -60,7 +60,7 @@ jobs:
       uses: swift-actions/setup-swift@v2
       continue-on-error: true # <<< ALLOW STEP TO "FAIL" INTERNALLY BUT CONTINUE WORKFLOW
       with:
-        swift-version: ${{ matrix.swift }} # "6.0.3"
+        swift-version: ${{ matrix.swift }} # "6.0.0"
 
     # 4.1 (Linux Only) Verify if Swift is available after setup-swift attempt
     - name: Verify Swift Command Availability (Linux)
@@ -81,7 +81,7 @@ jobs:
       if: matrix.os == 'macos-latest'
       uses: swift-actions/setup-swift@v2
       with:
-        swift-version: ${{ matrix.swift }} # "6.0.3"
+        swift-version: ${{ matrix.swift }} # "6.0.0"
 
     # === Common Steps ===
     # 5. Verify Swift installation (redundant check, but harmless)
