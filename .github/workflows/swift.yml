@@ -43,16 +43,15 @@ jobs:
           zlib1g-dev
         
         # Download and install Swift
-        SWIFT_VERSION=${{ matrix.swift }}
-        # Use Ubuntu 22.04 toolchain since 24.04 isn't officially supported yet
+        # Use the correct URL format for Swift.org downloads
+        SWIFT_VERSION=6.0
         SWIFT_PLATFORM=ubuntu2204
-        SWIFT_BRANCH=swift-${SWIFT_VERSION}-release
-        SWIFT_URL=https://download.swift.org/${SWIFT_BRANCH}/$(echo ${SWIFT_PLATFORM} | tr -d .)/swift-${SWIFT_VERSION}-${SWIFT_BRANCH}/swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM}.tar.gz
+        SWIFT_URL=https://download.swift.org/swift-${SWIFT_VERSION}-release/${SWIFT_PLATFORM}/swift-${SWIFT_VERSION}-RELEASE/swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM}.tar.gz
         
         echo "Downloading Swift from: ${SWIFT_URL}"
         wget ${SWIFT_URL}
-        tar xzf swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM}.tar.gz
-        sudo mv swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM} /usr/share/swift
+        tar xzf swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM}.tar.gz
+        sudo mv swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM} /usr/share/swift
         echo "export PATH=/usr/share/swift/usr/bin:$PATH" >> ~/.bashrc
         export PATH=/usr/share/swift/usr/bin:$PATH
         
