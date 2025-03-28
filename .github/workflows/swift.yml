@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        swift: ["5.9"]
+        swift: ["6.0"]
 
     steps:
     # 1. Check out repository code
