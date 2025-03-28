@@ -1,62 +1,90 @@
+# Workflow name
 name: swift
 
+# Triggers for the workflow
 on:
   push:
+    # Run on pushes to main, master, or develop branches
     branches: [ main, master, develop ]
   pull_request:
+    # Run on pull requests targeting main, master, or develop branches
     branches: [ main, master, develop ]
 
+# Jobs to run
 jobs:
-  # Build and test on multiple platforms
+  # Job for building and testing on multiple platforms and Swift versions
   build-and-test:
+    # Name displayed on GitHub for this job matrix instance
     name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
+    # Runner environment for the job
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false # Keep this false while debugging
+      # Don't cancel other jobs in the matrix if one fails
+      fail-fast: false
+      # Define the matrix configurations
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        swift: ["6.0"] # Consider adding newer versions like "5.10" if applicable
+        os: [ubuntu-latest, macos-latest] # Platforms to run on
+        swift: ["6.0"] # Swift versions to test (consider adding "5.10", "6.0", etc.)
+
+    # Steps to execute within the job
     steps:
-    - uses: actions/checkout@v4
-    # Use the official Swift setup action v2
-    # This action should handle GPG key import on Linux automatically
+    # 1. Check out the repository code
+    - name: Check out repository code
+      uses: actions/checkout@v4
+
+    # 2. (Linux Only) Ensure GPG tools are installed and configure dirmngr
+    #    This helps if the setup-swift action has trouble fetching keys due to
+    #    missing tools or IPv6 network issues with dirmngr.
+    - name: Ensure GPG/dirmngr and Configure (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update && sudo apt-get install -y gpg dirmngr
+        mkdir -p ~/.gnupg
+        chmod 700 ~/.gnupg
+        echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
+        echo "GPG and dirmngr installed, IPv6 disabled for dirmngr."
+
+    # 3. Set up the specified Swift version using the official action
+    #    This action should handle downloading, verifying (using GPG on Linux),
+    #    and installing the Swift toolchain.
     - name: Setup Swift
       uses: swift-actions/setup-swift@v2
       with:
         swift-version: ${{ matrix.swift }}
 
-    # Verify Swift installation
+    # 4. Verify the Swift installation
     - name: Verify Swift installation
       run: swift --version
 
-    # Linux-specific setup
+    # 5. (Linux Only) Install D-Bus dependencies required for building/testing
     - name: Install D-Bus dependencies (Ubuntu)
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        # Install both development (for building) and runtime libraries
+        # Install development headers and runtime libraries
         sudo apt-get install -y libdbus-1-dev dbus
-        # Start D-Bus session for testing environment (needed if tests interact with the session bus)
-        # Use eval to export variables correctly into the current shell environment
+        # Launch a session D-Bus instance and export its address to the environment
+        # 'eval' is necessary to make the variables available to subsequent steps
         eval $(dbus-launch --auto-syntax)
+        echo "D-Bus dependencies installed and session launched."
 
-    # macOS-specific setup - just install D-Bus but don't try to start the service
+    # 6. (macOS Only) Install D-Bus runtime (usually just for dependency resolution)
     - name: Install D-Bus (macOS)
       if: runner.os == 'macOS'
       run: |
         brew install dbus
-        # Don't try to start the service
+        echo "D-Bus installed via Homebrew (service not started)."
 
-    # Build the package
-    - name: Build
-      run: swift build -c release # Consider adding -v for verbose output if build issues occur
+    # 7. Build the Swift package in release configuration
+    - name: Build Package
+      run: swift build -c release -v # Added -v for verbose output during build
 
-    # Run tests only on Linux where D-Bus session is expected
-    - name: Run tests with Swift Testing (Linux)
+    # 8. (Linux Only) Run tests (assuming they require D-Bus environment)
+    - name: Run Tests (Linux)
       if: runner.os == 'Linux'
-      run: swift test
+      run: swift test -v # Added -v for verbose output during tests
 
-    # On macOS, explain why tests are skipped
-    - name: Explain skipped tests (macOS)
+    # 9. (macOS Only) Skip tests and explain why
+    - name: Explain Skipped Tests (macOS)
       if: runner.os == 'macOS'
-      run: echo "Skipping tests on macOS as they may require a D-Bus session environment not typically configured."
+      run: echo "Skipping tests on macOS as they may depend on a D-Bus session environment which is not typically configured here."
