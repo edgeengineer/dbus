@@ -44,12 +44,11 @@ jobs:
         echo "Manually downloading, decompressing, and importing Swift keys..."
         curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
         echo "Import process completed."
-        # Verify key import using the correct key name for Swift 6.x
-        if gpg --list-keys 'Swift 6.x Release Signing Key'; then # Corrected key name
+        if gpg --list-keys 'Swift 6.x Release Signing Key'; then
           echo "Swift 6.x Release Signing key successfully imported/found."
         else
           echo "ERROR: Swift 6.x Release Signing Key not found after import attempt!" >&2
-          exit 1 # Fail if the specific key we need wasn't imported
+          exit 1
         fi
 
     # 4. (Linux Only) Manually Download, Verify, and Install Swift
@@ -58,19 +57,24 @@ jobs:
       env:
         SWIFT_VERSION: ${{ matrix.swift }}
       run: |
-        UBUNTU_VERSION="24.04" # Adjust if ubuntu-latest changes or you use a specific runner
-        SWIFT_PLATFORM="ubuntu${UBUNTU_VERSION}"
-        SWIFT_BRANCH="swift-${SWIFT_VERSION}-release"
-        SWIFT_VERSION_TAG="${SWIFT_VERSION}-RELEASE"
-        SWIFT_TARBALL_NAME="swift-${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz"
-        SWIFT_DOWNLOAD_URL="https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM,,}/${SWIFT_VERSION_TAG}/${SWIFT_TARBALL_NAME}"
+        # Platform naming convention on download.swift.org uses no dot (e.g., ubuntu2404)
+        UBUNTU_VERSION_NODOT="2404" # Adjust if ubuntu-latest changes or you use a specific runner
+        SWIFT_PLATFORM="ubuntu${UBUNTU_VERSION_NODOT}"
 
-        echo "Downloading Swift: ${SWIFT_DOWNLOAD_URL}"
+        SWIFT_BRANCH="swift-${SWIFT_VERSION}-release"
+        # The directory tag includes "swift-" prefix
+        SWIFT_VERSION_TAG="swift-${SWIFT_VERSION}-RELEASE"
+        # The filename also uses the platform name without a dot
+        SWIFT_TARBALL_NAME="swift-${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz"
+
+        # Construct the final download URL
+        SWIFT_DOWNLOAD_URL="https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM}/${SWIFT_VERSION_TAG}/${SWIFT_TARBALL_NAME}"
+
+        echo "Downloading Swift from: ${SWIFT_DOWNLOAD_URL}"
         curl -fsSL "${SWIFT_DOWNLOAD_URL}" -o "${SWIFT_TARBALL_NAME}"
         curl -fsSL "${SWIFT_DOWNLOAD_URL}.sig" -o "${SWIFT_TARBALL_NAME}.sig"
 
         echo "Verifying Swift download using GPG..."
-        # This relies on keys imported in the previous step
         if gpg --verify "${SWIFT_TARBALL_NAME}.sig" "${SWIFT_TARBALL_NAME}"; then
            echo "GPG verification successful."
         else
@@ -87,6 +91,7 @@ jobs:
         echo "SWIFT_PATH=${SWIFT_PATH}" >> $GITHUB_ENV
         echo "${SWIFT_PATH}" >> $GITHUB_PATH
         echo "Swift installed manually to ${SWIFT_PATH}"
+
 
     # === macOS Setup ===
     - name: Setup Swift (macOS)
