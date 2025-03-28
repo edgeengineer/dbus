@@ -113,6 +113,22 @@ public class DBusMessage {
         try appendArgsToIter(iter: &iter, signature: signature, args: args)
     }
     
+    /// Appends arguments to the message with automatic signature detection
+    /// - Parameter args: The arguments to append
+    /// - Throws: DBusConnectionError if appending arguments fails
+    public func appendArguments(_ args: Any...) throws {
+        guard let message = message else {
+            throw DBusConnectionError.messageFailed("Invalid message")
+        }
+        
+        var iter = DBusMessageIter()
+        dbus_message_iter_init_append(message, &iter)
+        
+        for arg in args {
+            try appendArgWithAutoSignature(iter: &iter, arg: arg)
+        }
+    }
+    
     /// Extracts arguments from the message
     /// - Parameter signature: The D-Bus signature of the arguments
     /// - Returns: The extracted arguments
@@ -372,6 +388,110 @@ public class DBusMessage {
             
         default:
             throw DBusConnectionError.messageFailed("Unsupported type: \(typeChar)")
+        }
+    }
+    
+    // Helper function to append an argument with automatic signature detection
+    private func appendArgWithAutoSignature(iter: inout DBusMessageIter, arg: Any) throws {
+        switch arg {
+        case let value as UInt8:
+            var val = value
+            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_BYTE, &val) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to append byte")
+            }
+            
+        case let value as Bool:
+            var val: DBusBool = value ? 1 : 0
+            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_BOOLEAN, &val) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to append boolean")
+            }
+            
+        case let value as Int16:
+            var val = value
+            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT16, &val) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to append int16")
+            }
+            
+        case let value as UInt16:
+            var val = value
+            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT16, &val) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to append uint16")
+            }
+            
+        case let value as Int32:
+            var val = value
+            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &val) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to append int32")
+            }
+            
+        case let value as Int:
+            var val = Int32(value)
+            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &val) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to append int32")
+            }
+            
+        case let value as UInt32:
+            var val = value
+            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT32, &val) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to append uint32")
+            }
+            
+        case let value as Int64:
+            var val = value
+            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT64, &val) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to append int64")
+            }
+            
+        case let value as UInt64:
+            var val = value
+            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT64, &val) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to append uint64")
+            }
+            
+        case let value as Double:
+            var val = value
+            if dbus_message_iter_append_basic(&iter, DBUS_TYPE_DOUBLE, &val) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to append double")
+            }
+            
+        case let value as String:
+            // Use withCString for better cross-platform compatibility
+            var success = false
+            value.withCString { cString in
+                success = dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &cString) != 0
+            }
+            if !success {
+                throw DBusConnectionError.messageFailed("Failed to append string")
+            }
+            
+        case let value as [String]:
+            // Handle string arrays
+            var subIter = DBusMessageIter()
+            
+            // Create array container with signature "as"
+            if dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "s", &subIter) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to open array container")
+            }
+            
+            // Append each string
+            for str in value {
+                var success = false
+                str.withCString { cString in
+                    success = dbus_message_iter_append_basic(&subIter, DBUS_TYPE_STRING, &cString) != 0
+                }
+                if !success {
+                    dbus_message_iter_close_container(&iter, &subIter)
+                    throw DBusConnectionError.messageFailed("Failed to append string to array")
+                }
+            }
+            
+            // Close the container
+            if dbus_message_iter_close_container(&iter, &subIter) == 0 {
+                throw DBusConnectionError.messageFailed("Failed to close array container")
+            }
+            
+        default:
+            throw DBusConnectionError.messageFailed("Unsupported type: \(type(of: arg))")
         }
     }
 }

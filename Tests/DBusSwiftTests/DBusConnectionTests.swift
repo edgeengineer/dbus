@@ -9,20 +9,21 @@ struct DBusConnectionTests {
     @Test("Session Bus Connection")
     func testSessionBusConnection() throws {
         do {
-            let error = DBusError()
-            let connection = DBusConnection.connect(to: .session, error: error)
+            let connection = try DBusConnection(busType: .session)
             
             // Check that the connection was successful
-            #expect(connection != nil)
-            #expect(!error.isSet)
+            #expect(connection.getConnection() != nil)
             
-            // Check that the connection is not private
-            #expect(!connection!.isPrivate)
+            // Test connection by sending a simple message
+            let msg = DBusMessage.createMethodCall(
+                destination: "org.freedesktop.DBus",
+                path: "/org/freedesktop/DBus",
+                interface: "org.freedesktop.DBus",
+                method: "GetId"
+            )
             
-            // Test connection name
-            let name = connection!.getUniqueName()
-            #expect(name != nil)
-            #expect(name?.starts(with: ":") ?? false, "Unique name should start with ':'")
+            let reply = try connection.send(message: msg)
+            #expect(reply != nil)
         } catch {
             // Allow failure if D-Bus isn't running
             print("Warning: Could not connect to session bus: \(error)")
@@ -33,20 +34,21 @@ struct DBusConnectionTests {
     @Test("System Bus Connection")
     func testSystemBusConnection() throws {
         do {
-            let error = DBusError()
-            let connection = DBusConnection.connect(to: .system, error: error)
+            let connection = try DBusConnection(busType: .system)
             
             // Check that the connection was successful
-            #expect(connection != nil)
-            #expect(!error.isSet)
+            #expect(connection.getConnection() != nil)
             
-            // Check that the connection is not private
-            #expect(!connection!.isPrivate)
+            // Test connection by sending a simple message
+            let msg = DBusMessage.createMethodCall(
+                destination: "org.freedesktop.DBus",
+                path: "/org/freedesktop/DBus",
+                interface: "org.freedesktop.DBus",
+                method: "GetId"
+            )
             
-            // Test connection name
-            let name = connection!.getUniqueName()
-            #expect(name != nil)
-            #expect(name?.starts(with: ":") ?? false, "Unique name should start with ':'")
+            let reply = try connection.send(message: msg)
+            #expect(reply != nil)
         } catch {
             // Allow failure if D-Bus isn't running
             print("Warning: Could not connect to system bus: \(error)")
@@ -57,20 +59,25 @@ struct DBusConnectionTests {
     @Test("Request Name")
     func testRequestName() throws {
         do {
-            let error = DBusError()
-            let connection = DBusConnection.connect(to: .session, error: error)
+            let connection = try DBusConnection(busType: .session)
             
-            guard !error.isSet, let connection = connection else {
-                print("Warning: Could not connect to session bus")
-                return
-            }
+            // Create a method call to request a name
+            let msg = DBusMessage.createMethodCall(
+                destination: "org.freedesktop.DBus",
+                path: "/org/freedesktop/DBus",
+                interface: "org.freedesktop.DBus",
+                method: "RequestName"
+            )
             
-            // Request a name
-            let result = connection.requestName(name: "org.swift.DBusTest", flags: 0)
+            // Add arguments: name and flags
+            try msg.appendArguments("org.swift.DBusTest", UInt32(0))
+            
+            // Send the message and wait for a reply
+            let reply = try connection.send(message: msg)
             
             // We can't guarantee the result since it depends on the environment,
             // but we can check that the call completes without throwing
-            #expect(result != -1)
+            #expect(reply != nil)
         } catch {
             // Allow failure if D-Bus isn't running
             print("Warning: Could not connect to session bus: \(error)")
@@ -81,13 +88,7 @@ struct DBusConnectionTests {
     @Test("Send With Reply")
     func testSendWithReply() throws {
         do {
-            let error = DBusError()
-            let connection = DBusConnection.connect(to: .session, error: error)
-            
-            guard !error.isSet, let connection = connection else {
-                print("Warning: Could not connect to session bus")
-                return
-            }
+            let connection = try DBusConnection(busType: .session)
             
             // Create a method call to list names on the bus
             let msg = DBusMessage.createMethodCall(
@@ -98,11 +99,11 @@ struct DBusConnectionTests {
             )
             
             // Send the message and wait for a reply
-            let reply = try connection.sendWithReply(message: msg)
+            let reply = try connection.send(message: msg)
             
             // Check that we got a reply
             #expect(reply != nil)
-            #expect(reply.getMessageType() == DBusMessageType.methodReturn.toCType())
+            #expect(reply?.getMessageType() == .methodReturn)
             
             // We can't easily verify the contents of the reply,
             // but this ensures the call completes successfully

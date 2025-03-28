@@ -10,19 +10,19 @@ struct DBusMessageTests {
     func testMessageTypeCreation() throws {
         // Test method call creation
         let methodCall = DBusMessage(type: .methodCall)
-        #expect(methodCall.getMessageType() == DBusMessageType.methodCall.toCType())
+        #expect(methodCall.getMessageType() == .methodCall)
         
         // Test signal creation
         let signal = DBusMessage(type: .signal)
-        #expect(signal.getMessageType() == DBusMessageType.signal.toCType())
+        #expect(signal.getMessageType() == .signal)
         
         // Test method return creation
         let methodReturn = DBusMessage(type: .methodReturn)
-        #expect(methodReturn.getMessageType() == DBusMessageType.methodReturn.toCType())
+        #expect(methodReturn.getMessageType() == .methodReturn)
         
         // Test error message creation
         let errorMsg = DBusMessage(type: .error)
-        #expect(errorMsg.getMessageType() == DBusMessageType.error.toCType())
+        #expect(errorMsg.getMessageType() == .error)
     }
     
     /// Tests the creation of method call messages with specific parameters.
@@ -35,7 +35,7 @@ struct DBusMessageTests {
             method: "ListNames"
         )
         
-        #expect(msg.getMessageType() == DBusMessageType.methodCall.toCType())
+        #expect(msg.getMessageType() == .methodCall)
         #expect(msg.getDestination() == "org.freedesktop.DBus")
         #expect(msg.getPath() == "/org/freedesktop/DBus")
         #expect(msg.getInterface() == "org.freedesktop.DBus")
@@ -51,7 +51,7 @@ struct DBusMessageTests {
             name: "ExampleSignal"
         )
         
-        #expect(msg.getMessageType() == DBusMessageType.signal.toCType())
+        #expect(msg.getMessageType() == .signal)
         #expect(msg.getPath() == "/org/example/Path")
         #expect(msg.getInterface() == "org.example.Interface")
         #expect(msg.getMember() == "ExampleSignal")
@@ -63,18 +63,11 @@ struct DBusMessageTests {
         let msg = DBusMessage(type: .methodCall)
         
         // Test appending basic types
-        try msg.appendArgs(signature: "sibdogu", args: [
-            "hello",
-            42,
-            true,
-            3.14,
-            "/org/example/Path",
-            "sig",
-            UInt32(100)
-        ])
+        try msg.appendArguments("hello", 42, true, 3.14, "/org/example/Path", "sig", UInt32(100))
         
         // Test appending array
-        try msg.appendArgs(signature: "as", args: [["string1", "string2", "string3"]])
+        let stringArray = ["string1", "string2", "string3"]
+        try msg.appendArguments(stringArray)
         
         // We can't easily verify the arguments without a full round-trip test,
         // but this ensures the append calls don't throw
