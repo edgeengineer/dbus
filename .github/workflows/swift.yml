@@ -11,23 +11,16 @@ on:
 # Jobs to run
 jobs:
   build-and-test:
-    # Job name includes Swift version and OS name defined in matrix
-    name: Swift ${{ matrix.swift }} on ${{ matrix.os-name }}
+    # *** ADJUSTED JOB NAME to use matrix.os ***
+    name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
     # Use specific runner OS from matrix
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # *** SIMPLIFIED MATRIX DEFINITION ***
       matrix:
-        # Define OS runner and a display name using 'include'
-        include:
-          # Linux job runs on Ubuntu 22.04
-          - os: ubuntu-22.04
-            os-name: Ubuntu 22.04
-          # macOS job runs on latest macOS runner
-          - os: macos-latest
-            os-name: macOS Latest
-        # Define Swift version(s) to use for both OS configurations
-        swift: ["6.0"]
+        os: [ubuntu-22.04, macos-latest] # Direct list of OS runners
+        swift: ["6.0"] # Direct list of Swift versions
 
     steps:
     # 1. Check out repository code
@@ -35,140 +28,113 @@ jobs:
       uses: actions/checkout@v4
 
     # === Linux Setup (Ubuntu 22.04) ===
-    # These steps only run on the Linux runner
-
     # 2. (Linux Only) Ensure prerequisites are installed
     - name: Ensure Prerequisites (Linux)
-      if: runner.os == 'Linux'
+      if: matrix.os == 'ubuntu-22.04' # Condition using matrix.os
       run: |
-        # Update package lists and install tools needed for manual install & building
         sudo apt-get update && sudo apt-get install -y \
           gpg dirmngr gzip curl wget \
-          libatomic1 libncurses5 # Common Swift runtime dependencies on Ubuntu 22.04
-        # Create GPG directory and configure dirmngr to disable IPv6 (helps with key fetching)
+          libatomic1 libncurses5
         mkdir -p ~/.gnupg
         chmod 700 ~/.gnupg
         echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
         echo "Prerequisites installed, GPG configured."
 
     # 3. (Linux Only) Manually fetch, decompress, and import Swift keys
-    #    Workaround for setup-swift action's inability to handle gzipped keys from server.
     - name: Manually Fetch and Import Swift Keys (Linux)
-      if: runner.os == 'Linux'
+      if: matrix.os == 'ubuntu-22.04' # Condition using matrix.os
       run: |
         echo "Manually downloading, decompressing, and importing Swift keys..."
-        # Download keys, decompress with gunzip, import into GPG
         curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
         echo "Import process completed."
-        # Verify the specific key needed for Swift 6.x was imported
         if gpg --list-keys 'Swift 6.x Release Signing Key'; then
           echo "Swift 6.x Release Signing key successfully imported/found."
         else
           echo "ERROR: Swift 6.x Release Signing Key not found after import attempt!" >&2
-          exit 1 # Fail the job if the key import verification failed
+          exit 1
         fi
 
     # 4. (Linux Only) Manually Download, Verify, and Install Swift for Ubuntu 22.04
-    #    Bypasses the setup-swift action entirely on Linux.
     - name: Manually Install Swift (Linux - Ubuntu 22.04)
-      if: runner.os == 'Linux'
+      if: matrix.os == 'ubuntu-22.04' # Condition using matrix.os
       env:
-        # Use the Swift version defined in the matrix
         SWIFT_VERSION: ${{ matrix.swift }}
       run: |
-        # --- Swift Toolchain Download Configuration for Ubuntu 22.04 ---
         UBUNTU_VERSION_NODOT="2204"
-        SWIFT_PLATFORM="ubuntu${UBUNTU_VERSION_NODOT}" # "ubuntu2204"
-        SWIFT_BRANCH="swift-${SWIFT_VERSION}-release" # e.g., "swift-6.0-release"
-        SWIFT_VERSION_TAG="swift-${SWIFT_VERSION}-RELEASE" # e.g., "swift-6.0-RELEASE"
-        SWIFT_TARBALL_NAME="${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz" # e.g., "swift-6.0-RELEASE-ubuntu2204.tar.gz"
-        # Construct the download URL using the correct components
+        SWIFT_PLATFORM="ubuntu${UBUNTU_VERSION_NODOT}"
+        SWIFT_BRANCH="swift-${SWIFT_VERSION}-release"
+        SWIFT_VERSION_TAG="swift-${SWIFT_VERSION}-RELEASE"
+        SWIFT_TARBALL_NAME="${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz"
         SWIFT_DOWNLOAD_URL="https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM}/${SWIFT_VERSION_TAG}/${SWIFT_TARBALL_NAME}"
-        # --- End Configuration ---
 
         echo "Downloading Swift from: ${SWIFT_DOWNLOAD_URL}"
-        # Use wget for download (-nv for non-verbose, -O specifies output file)
         if wget -nv -O "${SWIFT_TARBALL_NAME}" "${SWIFT_DOWNLOAD_URL}"; then
           echo "wget download succeeded."
         else
-          # Exit immediately if download fails
           echo "wget download FAILED! Exit code: $?" >&2
           exit 1
         fi
 
-        echo "Downloading signature file..."
-        # Use curl for signature download (-f fails on HTTP error, -sS silent but shows errors, -L follows redirects)
+        echo "Downloading signature..."
         curl -fsSL "${SWIFT_DOWNLOAD_URL}.sig" -o "${SWIFT_TARBALL_NAME}.sig"
 
         echo "Verifying Swift download using GPG..."
-        # Verify the downloaded tarball against the signature file using imported keys
         if gpg --verify "${SWIFT_TARBALL_NAME}.sig" "${SWIFT_TARBALL_NAME}"; then
            echo "GPG verification successful."
         else
-           # Exit immediately if GPG verification fails
            echo "GPG verification FAILED!" >&2
            exit 1
         fi
 
         echo "Extracting Swift toolchain..."
-        # Create directory and extract the toolchain into it, stripping the top-level directory from the tarball
         mkdir swift_toolchain
         tar xzf "${SWIFT_TARBALL_NAME}" -C swift_toolchain --strip-components=1
 
         echo "Adding Swift to PATH..."
-        # Get the absolute path to the extracted toolchain's bin directory
         SWIFT_PATH="$(pwd)/swift_toolchain/usr/bin"
-        # Make SWIFT_PATH available as an environment variable for subsequent steps
         echo "SWIFT_PATH=${SWIFT_PATH}" >> $GITHUB_ENV
-        # Add the Swift bin directory to the PATH for subsequent steps
         echo "${SWIFT_PATH}" >> $GITHUB_PATH
         echo "Swift installed manually to ${SWIFT_PATH}"
 
     # === macOS Setup ===
-    # This step only runs on the macOS runner
-
-    # Use the standard setup-swift action (works fine on macOS)
     - name: Setup Swift (macOS)
-      if: runner.os == 'macOS'
+      # *** UPDATED Condition using matrix.os ***
+      if: matrix.os == 'macos-latest'
       uses: swift-actions/setup-swift@v2
       with:
-        # Use the Swift version defined in the matrix
         swift-version: ${{ matrix.swift }}
 
-    # === Common Steps (Post-Installation) ===
-    # These steps run on both Linux and macOS after Swift is set up
-
-    # 5. Verify Swift installation (useful check)
+    # === Common Steps ===
+    # 5. Verify Swift installation
     - name: Verify Swift installation
       run: swift --version
 
-    # 6. Install D-Bus dependencies (Platform specific execution)
+    # 6. Install D-Bus dependencies
     - name: Install D-Bus dependencies (Ubuntu)
-      if: runner.os == 'Linux'
+      # *** UPDATED Condition using matrix.os ***
+      if: matrix.os == 'ubuntu-22.04'
       run: |
         sudo apt-get update
         sudo apt-get install -y libdbus-1-dev dbus
-        # Launch a session D-Bus instance for potential test usage
         eval $(dbus-launch --auto-syntax)
         echo "D-Bus dependencies installed and session launched."
     - name: Install D-Bus (macOS)
-      if: runner.os == 'macOS'
+      # *** UPDATED Condition using matrix.os ***
+      if: matrix.os == 'macos-latest'
       run: |
-        # Install D-Bus using Homebrew
         brew install dbus
         echo "D-Bus installed via Homebrew (service not started)."
 
     # 7. Build the Swift package
     - name: Build Package
-      # Use verbose flag for more detailed build output
       run: swift build -c release -v
 
-    # 8. Run tests (Platform specific logic/explanation)
+    # 8. Run tests
     - name: Run Tests (Linux)
-      if: runner.os == 'Linux'
-      # Use verbose flag for more detailed test output
+      # *** UPDATED Condition using matrix.os ***
+      if: matrix.os == 'ubuntu-22.04'
       run: swift test -v
     - name: Explain Skipped Tests (macOS)
-      if: runner.os == 'macOS'
-      # Explain why tests might be skipped on macOS if they rely on Linux-specific features
+      # *** UPDATED Condition using matrix.os ***
+      if: matrix.os == 'macos-latest'
       run: echo "Skipping tests on macOS as they may depend on a D-Bus session environment."
