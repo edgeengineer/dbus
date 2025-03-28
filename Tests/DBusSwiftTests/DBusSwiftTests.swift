@@ -13,7 +13,7 @@ struct DBusSwiftTests {
             method: "ListNames"
         )
         
-        #expect(msg.getMessageType() == DBUS_MESSAGE_TYPE_METHOD_CALL)
+        #expect(msg.getMessageType() == .methodCall)
         #else
         // Skip test on non-Linux platforms
         print("Skipping D-Bus tests on non-Linux platform")
@@ -29,7 +29,7 @@ struct DBusSwiftTests {
             name: "ExampleSignal"
         )
         
-        #expect(msg.getMessageType() == DBUS_MESSAGE_TYPE_SIGNAL)
+        #expect(msg.getMessageType() == .signal)
         #else
         // Skip test on non-Linux platforms
         print("Skipping D-Bus tests on non-Linux platform")
@@ -39,7 +39,7 @@ struct DBusSwiftTests {
     @Test("Argument Appending")
     func testArgumentAppending() throws {
         #if os(Linux)
-        let msg = DBusMessage(type: DBUS_MESSAGE_TYPE_METHOD_CALL)
+        let msg = DBusMessage(type: .methodCall)
         
         try msg.appendArgs(signature: "sib", args: ["hello", 42, true])
         
@@ -55,7 +55,7 @@ struct DBusSwiftTests {
     @Test("System Bus Connection")
     func testSystemBusConnection() async throws {
         do {
-            let dbus = try DBusAsync(busType: DBUS_BUS_SYSTEM)
+            let dbus = try DBusAsync(busType: .system)
             // Just testing that we can create a connection without throwing
             #expect(dbus != nil)
         } catch {

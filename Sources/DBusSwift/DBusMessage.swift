@@ -85,7 +85,7 @@ public class DBusMessage {
         return message
     }
     
-    /// Returns the type of this message
+    /// Gets the message type
     /// - Returns: The message type
     public func getMessageType() -> DBusMessageType {
         guard let message = message else {
@@ -94,6 +94,146 @@ public class DBusMessage {
         
         let type = dbus_message_get_type(message)
         return DBusMessageType(rawValue: type) ?? .invalid
+    }
+    
+    /// Gets the destination of the message
+    /// - Returns: The destination or nil if not set
+    public func getDestination() -> String? {
+        guard let message = message else {
+            return nil
+        }
+        
+        guard let cString = dbus_message_get_destination(message) else {
+            return nil
+        }
+        
+        return String(cString: cString)
+    }
+    
+    /// Sets the destination of the message
+    /// - Parameter destination: The destination
+    /// - Returns: true if successful, false otherwise
+    @discardableResult
+    public func setDestination(_ destination: String) -> Bool {
+        guard let message = message else {
+            return false
+        }
+        
+        return destination.withCString { cString in
+            dbus_message_set_destination(message, cString) != 0
+        }
+    }
+    
+    /// Gets the path of the message
+    /// - Returns: The path or nil if not set
+    public func getPath() -> String? {
+        guard let message = message else {
+            return nil
+        }
+        
+        guard let cString = dbus_message_get_path(message) else {
+            return nil
+        }
+        
+        return String(cString: cString)
+    }
+    
+    /// Sets the path of the message
+    /// - Parameter path: The path
+    /// - Returns: true if successful, false otherwise
+    @discardableResult
+    public func setPath(_ path: String) -> Bool {
+        guard let message = message else {
+            return false
+        }
+        
+        return path.withCString { cString in
+            dbus_message_set_path(message, cString) != 0
+        }
+    }
+    
+    /// Gets the interface of the message
+    /// - Returns: The interface or nil if not set
+    public func getInterface() -> String? {
+        guard let message = message else {
+            return nil
+        }
+        
+        guard let cString = dbus_message_get_interface(message) else {
+            return nil
+        }
+        
+        return String(cString: cString)
+    }
+    
+    /// Sets the interface of the message
+    /// - Parameter interface: The interface
+    /// - Returns: true if successful, false otherwise
+    @discardableResult
+    public func setInterface(_ interface: String) -> Bool {
+        guard let message = message else {
+            return false
+        }
+        
+        return interface.withCString { cString in
+            dbus_message_set_interface(message, cString) != 0
+        }
+    }
+    
+    /// Gets the member of the message
+    /// - Returns: The member or nil if not set
+    public func getMember() -> String? {
+        guard let message = message else {
+            return nil
+        }
+        
+        guard let cString = dbus_message_get_member(message) else {
+            return nil
+        }
+        
+        return String(cString: cString)
+    }
+    
+    /// Sets the member of the message
+    /// - Parameter member: The member
+    /// - Returns: true if successful, false otherwise
+    @discardableResult
+    public func setMember(_ member: String) -> Bool {
+        guard let message = message else {
+            return false
+        }
+        
+        return member.withCString { cString in
+            dbus_message_set_member(message, cString) != 0
+        }
+    }
+    
+    /// Gets the sender of the message
+    /// - Returns: The sender or nil if not set
+    public func getSender() -> String? {
+        guard let message = message else {
+            return nil
+        }
+        
+        guard let cString = dbus_message_get_sender(message) else {
+            return nil
+        }
+        
+        return String(cString: cString)
+    }
+    
+    /// Sets the sender of the message
+    /// - Parameter sender: The sender
+    /// - Returns: true if successful, false otherwise
+    @discardableResult
+    public func setSender(_ sender: String) -> Bool {
+        guard let message = message else {
+            return false
+        }
+        
+        return sender.withCString { cString in
+            dbus_message_set_sender(message, cString) != 0
+        }
     }
     
     /// Appends arguments to the message
