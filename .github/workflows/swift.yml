@@ -4,31 +4,23 @@ name: swift
 # Triggers for the workflow
 on:
   push:
-    # Run on pushes to main, master, or develop branches
     branches: [ main, master, develop ]
   pull_request:
-    # Run on pull requests targeting main, master, or develop branches
     branches: [ main, master, develop ]
 
 # Jobs to run
 jobs:
-  # Job for building and testing on multiple platforms and Swift versions
   build-and-test:
-    # Name displayed on GitHub for this job matrix instance
     name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
-    # Runner environment for the job
-    runs-on: ${{ matrix.os }} # Consider changing ubuntu-latest to ubuntu-22.04 if issues persist
+    runs-on: ${{ matrix.os }} # Consider ubuntu-22.04 if latest still has issues
     strategy:
-      # Don't cancel other jobs in the matrix if one fails
       fail-fast: false
-      # Define the matrix configurations
       matrix:
-        os: [ubuntu-latest, macos-latest] # Platforms to run on
-        swift: ["5.9"] # Swift versions to test
+        os: [ubuntu-latest, macos-latest]
+        swift: ["5.9"]
 
-    # Steps to execute within the job
     steps:
-    # 1. Check out the repository code
+    # 1. Check out repository code
     - name: Check out repository code
       uses: actions/checkout@v4
 
@@ -36,29 +28,32 @@ jobs:
     - name: Ensure GPG/dirmngr and Configure (Linux)
       if: runner.os == 'Linux'
       run: |
-        sudo apt-get update && sudo apt-get install -y gpg dirmngr
+        sudo apt-get update && sudo apt-get install -y gpg dirmngr gunzip curl
         mkdir -p ~/.gnupg
         chmod 700 ~/.gnupg
         echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
-        echo "GPG and dirmngr installed, IPv6 disabled for dirmngr."
+        echo "GPG, dirmngr, gunzip, curl installed, IPv6 disabled for dirmngr."
 
-    # 3. (Linux Only) DEBUG STEP: Manually download Swift keys to check download process
-    - name: Debug Download Swift Keys (Linux)
+    # 3. (Linux Only) WORKAROUND: Manually fetch, decompress, and import Swift keys
+    #    This bypasses the apparent failure of setup-swift to handle gzip encoding.
+    - name: Manually Fetch and Import Swift Keys (Linux Workaround)
       if: runner.os == 'Linux'
       run: |
-        echo "Attempting to download Swift keys manually..."
-        # Use curl with verbose output (-v) and fail-fast (-f) to diagnose download
-        curl -v -fSL https://swift.org/keys/all-keys.asc -o swiftkeys.asc
-        echo "Curl download exit code: $?"
-        echo "--- Start of downloaded keys (first 10 lines) ---"
-        head swiftkeys.asc || echo "File empty or head failed"
-        echo "--- End of downloaded keys ---"
-        # Try showing keys from the downloaded file using gpg
-        echo "--- GPG Check of Downloaded File ---"
-        gpg --show-keys swiftkeys.asc || echo "GPG cannot parse manually downloaded file"
-        echo "--- Debug Step Complete ---"
+        echo "Manually downloading, decompressing, and importing Swift keys..."
+        # Download (-fsSL), decompress (gunzip), import (gpg --import -)
+        curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
+        echo "Import process completed."
+        # Check GPG's exit code (optional, gpg returns 0 even if no keys processed from stdin sometimes)
+        # Verify key import (recommended)
+        if gpg --list-keys 'Swift Builders'; then
+          echo "Swift Builders key successfully imported."
+        else
+          echo "WARNING: Swift Builders key not found after import attempt!" >&2
+          # Optionally fail the job if key import is critical: exit 1
+        fi
 
     # 4. Set up the specified Swift version using the official action
+    #    Hopefully, it detects the key is already imported or skips its own GPG check.
     - name: Setup Swift
       uses: swift-actions/setup-swift@v2
       with:
@@ -68,7 +63,7 @@ jobs:
     - name: Verify Swift installation
       run: swift --version
 
-    # 6. (Linux Only) Install D-Bus dependencies required for building/testing
+    # 6. (Linux Only) Install D-Bus dependencies
     - name: Install D-Bus dependencies (Ubuntu)
       if: runner.os == 'Linux'
       run: |
@@ -84,16 +79,16 @@ jobs:
         brew install dbus
         echo "D-Bus installed via Homebrew (service not started)."
 
-    # 8. Build the Swift package in release configuration
+    # 8. Build the Swift package
     - name: Build Package
-      run: swift build -c release -v # Verbose output
+      run: swift build -c release -v
 
     # 9. (Linux Only) Run tests
     - name: Run Tests (Linux)
       if: runner.os == 'Linux'
-      run: swift test -v # Verbose output
+      run: swift test -v
 
-    # 10. (macOS Only) Skip tests and explain why
+    # 10. (macOS Only) Skip tests
     - name: Explain Skipped Tests (macOS)
       if: runner.os == 'macOS'
       run: echo "Skipping tests on macOS as they may depend on a D-Bus session environment."
