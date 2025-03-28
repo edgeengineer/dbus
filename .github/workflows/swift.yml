@@ -19,53 +19,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    # Use Swift.org's official setup script for Linux
-    - name: Install Swift (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        # Install dependencies
-        sudo apt-get update
-        sudo apt-get install -y \
-          binutils \
-          git \
-          gnupg2 \
-          libc6-dev \
-          libcurl4 \
-          libedit2 \
-          libgcc-9-dev \
-          libpython3-dev \
-          libsqlite3-0 \
-          libstdc++-9-dev \
-          libxml2-dev \
-          libz3-dev \
-          pkg-config \
-          tzdata \
-          zlib1g-dev
-        
-        # Download and install Swift
-        # Using the latest Swift 6.0.3 release for Ubuntu 22.04
-        SWIFT_VERSION=6.0.3
-        SWIFT_PLATFORM=ubuntu2204
-        SWIFT_URL=https://download.swift.org/swift-${SWIFT_VERSION}-release/${SWIFT_PLATFORM}/swift-${SWIFT_VERSION}-RELEASE/swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM}.tar.gz
-        
-        echo "Downloading Swift from: ${SWIFT_URL}"
-        wget -q ${SWIFT_URL}
-        
-        # Extract and install Swift
-        tar xzf swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM}.tar.gz
-        sudo mv swift-${SWIFT_VERSION}-RELEASE-${SWIFT_PLATFORM} /usr/share/swift
-        echo "export PATH=/usr/share/swift/usr/bin:$PATH" >> ~/.bashrc
-        export PATH=/usr/share/swift/usr/bin:$PATH
-        
-        # Verify installation
-        swift --version
-    
-    # Use Swift on macOS (pre-installed)
-    - name: Setup Swift (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        # macOS already has Swift installed via Xcode
-        swift --version
+    # Use the official Swift setup action
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v1
+      with:
+        swift-version: ${{ matrix.swift }}
         
     - name: Install D-Bus dependencies (Ubuntu)
       if: runner.os == 'Linux'
