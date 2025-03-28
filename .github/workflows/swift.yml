@@ -19,19 +19,51 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    # Use a simpler approach to fix GPG issues on Ubuntu
-    - name: Fix GPG keys (Ubuntu)
+    # Use Swift.org's official setup script for Linux
+    - name: Install Swift (Linux)
       if: runner.os == 'Linux'
       run: |
-        # Skip GPG verification for apt
-        echo 'Acquire::AllowInsecureRepositories "true";' | sudo tee /etc/apt/apt.conf.d/99allow-insecure
-        echo 'Acquire::AllowDowngradeToInsecureRepositories "true";' | sudo tee -a /etc/apt/apt.conf.d/99allow-insecure
-        echo 'APT::Get::AllowUnauthenticated "true";' | sudo tee -a /etc/apt/apt.conf.d/99allow-insecure
+        # Install dependencies
+        sudo apt-get update
+        sudo apt-get install -y \
+          binutils \
+          git \
+          gnupg2 \
+          libc6-dev \
+          libcurl4 \
+          libedit2 \
+          libgcc-9-dev \
+          libpython3.8 \
+          libsqlite3-0 \
+          libstdc++-9-dev \
+          libxml2-dev \
+          libz3-dev \
+          pkg-config \
+          tzdata \
+          zlib1g-dev
+        
+        # Download and install Swift
+        SWIFT_VERSION=${{ matrix.swift }}
+        SWIFT_PLATFORM=ubuntu2204
+        SWIFT_BRANCH=swift-${SWIFT_VERSION}-release
+        SWIFT_VERSION_UPPER=$(echo $SWIFT_VERSION | tr '[:lower:]' '[:upper:]')
+        SWIFT_URL=https://download.swift.org/${SWIFT_BRANCH}/$(echo ${SWIFT_PLATFORM} | tr -d .)/swift-${SWIFT_VERSION}-${SWIFT_BRANCH}/swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM}.tar.gz
+        
+        wget -q ${SWIFT_URL}
+        tar xzf swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM}.tar.gz --directory=/tmp
+        sudo mv /tmp/swift-${SWIFT_VERSION}-${SWIFT_BRANCH}-${SWIFT_PLATFORM} /usr/share/swift
+        echo "export PATH=/usr/share/swift/usr/bin:$PATH" >> ~/.bashrc
+        export PATH=/usr/share/swift/usr/bin:$PATH
+        
+        # Verify installation
+        swift --version
     
-    - name: Setup Swift
-      uses: SwiftyLab/setup-swift@v1
-      with:
-        swift-version: ${{ matrix.swift }}
+    # Use Swift on macOS (pre-installed)
+    - name: Setup Swift (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        # macOS already has Swift installed via Xcode
+        swift --version
         
     - name: Install D-Bus dependencies (Ubuntu)
       if: runner.os == 'Linux'
