@@ -11,79 +11,84 @@ on:
 # Jobs to run
 jobs:
   build-and-test:
-    name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
+    name: Swift ${{ matrix.swift }} on ${{ matrix.os-name }} # Use custom name
+    # *** Use specific runner versions - SWITCHED Linux to ubuntu-22.04 ***
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        swift: ["6.0"] # Using Swift 6.0 as required by dependencies
+        # Define OS runner and a display name
+        include:
+          - os: ubuntu-22.04 # *** USE UBUNTU 22.04 RUNNER ***
+            os-name: Ubuntu 22.04
+          - os: macos-latest
+            os-name: macOS Latest
+        swift: ["6.0"]
 
     steps:
     # 1. Check out repository code
     - name: Check out repository code
       uses: actions/checkout@v4
 
-    # === Linux Setup ===
+    # === Linux Setup (Ubuntu 22.04) ===
     # 2. (Linux Only) Ensure prerequisites are installed
     - name: Ensure Prerequisites (Linux)
       if: runner.os == 'Linux'
       run: |
-        # Update package lists and install necessary tools
         sudo apt-get update && sudo apt-get install -y \
-          gpg dirmngr gzip curl \
-          libatomic1 # Swift dependency
-        # Create GPG directory and configure dirmngr
+          gpg dirmngr gzip curl wget \
+          libatomic1 libncurses5 # Add common Swift deps for 22.04
         mkdir -p ~/.gnupg
         chmod 700 ~/.gnupg
         echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
         echo "Prerequisites installed, GPG configured."
 
     # 3. (Linux Only) Manually fetch, decompress, and import Swift keys
-    #    Workaround for setup-swift action's inability to handle gzipped keys.
     - name: Manually Fetch and Import Swift Keys (Linux)
       if: runner.os == 'Linux'
       run: |
         echo "Manually downloading, decompressing, and importing Swift keys..."
         curl -fsSL https://swift.org/keys/all-keys.asc | gunzip | gpg --import -
         echo "Import process completed."
-        # Verify key import using the correct key name for Swift 6.x
         if gpg --list-keys 'Swift 6.x Release Signing Key'; then
           echo "Swift 6.x Release Signing key successfully imported/found."
         else
           echo "ERROR: Swift 6.x Release Signing Key not found after import attempt!" >&2
-          exit 1 # Fail if the specific key we need wasn't imported
+          exit 1
         fi
 
-    # 4. (Linux Only) Manually Download, Verify, and Install Swift Toolchain
-    #    Bypasses setup-swift action on Linux due to its internal GPG bug.
-    #    Corrected URL construction (fixed swift-swift- filename bug).
-    - name: Manually Install Swift (Linux)
+    # 4. (Linux Only) Manually Download, Verify, and Install Swift for Ubuntu 22.04
+    - name: Manually Install Swift (Linux - Ubuntu 22.04)
       if: runner.os == 'Linux'
       env:
-        SWIFT_VERSION: ${{ matrix.swift }} # e.g., "6.0"
+        SWIFT_VERSION: ${{ matrix.swift }}
       run: |
-        # Define platform and version components for URL construction
-        UBUNTU_VERSION_NODOT="2404" # Based on ubuntu-latest being Noble Numbat (~Mar 2025). Adjust if needed.
-        SWIFT_PLATFORM="ubuntu${UBUNTU_VERSION_NODOT}" # e.g., "ubuntu2404"
+        # *** Use Ubuntu 22.04 configuration ***
+        UBUNTU_VERSION_NODOT="2204"
+        SWIFT_PLATFORM="ubuntu${UBUNTU_VERSION_NODOT}" # "ubuntu2204"
 
-        SWIFT_BRANCH="swift-${SWIFT_VERSION}-release" # e.g., "swift-6.0-release"
-        SWIFT_VERSION_TAG="swift-${SWIFT_VERSION}-RELEASE" # e.g., "swift-6.0-RELEASE"
+        SWIFT_BRANCH="swift-${SWIFT_VERSION}-release"
+        SWIFT_VERSION_TAG="swift-${SWIFT_VERSION}-RELEASE"
+        SWIFT_TARBALL_NAME="${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz" # e.g., swift-6.0-RELEASE-ubuntu2204.tar.gz
 
-        # Construct filename (CORRECTED: removed extra "swift-" prefix)
-        SWIFT_TARBALL_NAME="${SWIFT_VERSION_TAG}-${SWIFT_PLATFORM}.tar.gz"
-        # Example: "swift-6.0-RELEASE-ubuntu2404.tar.gz"
-
-        # Construct download URL using corrected components
+        # Construct download URL for Ubuntu 22.04
         SWIFT_DOWNLOAD_URL="https://download.swift.org/${SWIFT_BRANCH}/${SWIFT_PLATFORM}/${SWIFT_VERSION_TAG}/${SWIFT_TARBALL_NAME}"
-        # Example: https://download.swift.org/swift-6.0-release/ubuntu2404/swift-6.0-RELEASE/swift-6.0-RELEASE-ubuntu2404.tar.gz
 
         echo "Downloading Swift from: ${SWIFT_DOWNLOAD_URL}"
-        curl -fsSL "${SWIFT_DOWNLOAD_URL}" -o "${SWIFT_TARBALL_NAME}"
+        # Using wget for download
+        # Added --quiet option to wget
+        if wget --quiet -O "${SWIFT_TARBALL_NAME}" "${SWIFT_DOWNLOAD_URL}"; then
+          echo "wget download succeeded."
+        else
+          echo "wget download FAILED! Exit code: $?" >&2
+          exit 1
+        fi
+
+        echo "Downloading signature..."
+        # Using curl with -sS for silent errors, L to follow redirects
         curl -fsSL "${SWIFT_DOWNLOAD_URL}.sig" -o "${SWIFT_TARBALL_NAME}.sig"
 
         echo "Verifying Swift download using GPG..."
-        # This relies on keys imported correctly in the previous step
         if gpg --verify "${SWIFT_TARBALL_NAME}.sig" "${SWIFT_TARBALL_NAME}"; then
            echo "GPG verification successful."
         else
@@ -97,25 +102,23 @@ jobs:
 
         echo "Adding Swift to PATH..."
         SWIFT_PATH="$(pwd)/swift_toolchain/usr/bin"
-        echo "SWIFT_PATH=${SWIFT_PATH}" >> $GITHUB_ENV # Export SWIFT_PATH variable if needed later
-        echo "${SWIFT_PATH}" >> $GITHUB_PATH         # Add Swift bin to PATH for subsequent steps
+        echo "SWIFT_PATH=${SWIFT_PATH}" >> $GITHUB_ENV
+        echo "${SWIFT_PATH}" >> $GITHUB_PATH
         echo "Swift installed manually to ${SWIFT_PATH}"
 
-
     # === macOS Setup ===
-    # Use standard setup-swift action on macOS (no GPG issues here)
     - name: Setup Swift (macOS)
       if: runner.os == 'macOS'
       uses: swift-actions/setup-swift@v2
       with:
         swift-version: ${{ matrix.swift }}
 
-    # === Common Steps (Post-Installation) ===
-    # 5. Verify Swift installation (runs on both OS)
+    # === Common Steps ===
+    # 5. Verify Swift installation
     - name: Verify Swift installation
       run: swift --version
 
-    # 6. Install D-Bus dependencies (Platform specific)
+    # 6. Install D-Bus dependencies
     - name: Install D-Bus dependencies (Ubuntu)
       if: runner.os == 'Linux'
       run: |
@@ -133,7 +136,7 @@ jobs:
     - name: Build Package
       run: swift build -c release -v
 
-    # 8. Run tests (Platform specific logic)
+    # 8. Run tests
     - name: Run Tests (Linux)
       if: runner.os == 'Linux'
       run: swift test -v
