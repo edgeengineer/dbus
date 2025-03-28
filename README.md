@@ -73,10 +73,18 @@ Then add the dependency to your target:
 
 ### Linux Dependencies
 
-On Linux, you need to install the D-Bus development package:
+#### For Development
+If you're developing applications with DBusSwift or building the package from source, you need the D-Bus development package:
 
 ```bash
 sudo apt-get install libdbus-1-dev
+```
+
+#### For Runtime Only
+If you're only running applications that use DBusSwift (e.g., distributing a compiled application), you only need the runtime library:
+
+```bash
+sudo apt-get install libdbus-1-3
 ```
 
 ## Usage

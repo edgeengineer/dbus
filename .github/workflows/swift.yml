@@ -39,6 +39,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
+        # Install both development (for building) and runtime libraries
         sudo apt-get install -y libdbus-1-dev dbus
         # Start D-Bus session for testing
         sudo dbus-launch --auto-syntax
