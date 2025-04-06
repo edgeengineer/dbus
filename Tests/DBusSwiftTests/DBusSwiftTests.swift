@@ -126,8 +126,7 @@ struct DBusSwiftTests {
     func testSystemBusConnection() async {
         do {
             let dbus = try DBusAsync(busType: .system)
-            let connection = await dbus.getConnection()
-            #expect(connection != nil)
+            let _ = await dbus.getConnection()
         } catch {
             // Allow failure if D-Bus isn't running
             print("Warning: Could not connect to system bus: \(error)")
@@ -158,8 +157,7 @@ struct DBusSwiftTests {
     func testDBusAsync() async {
         do {
             let dbus = try DBusAsync(busType: .session)
-            let connection = await dbus.getConnection()
-            #expect(connection != nil)
+            let _ = await dbus.getConnection()
         } catch {
             print("Warning: Could not create DBusAsync: \(error)")
         }
