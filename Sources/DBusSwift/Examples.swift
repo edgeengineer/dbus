@@ -20,7 +20,6 @@ public enum DBusExamples {
                 path: "/org/freedesktop/DBus",
                 interface: "org.freedesktop.DBus",
                 method: "ListNames",
-                args: [] as [any Sendable],
                 signature: "",
                 replySignature: "as"
             )
@@ -48,7 +47,7 @@ public enum DBusExamples {
                 path: "/org/example/Path",
                 interface: "org.example.Interface",
                 name: "ExampleSignal",
-                args: ["Hello from Swift!", 42] as [any Sendable],
+                args: "Hello from Swift!", 42,
                 signature: "si"
             )
             
@@ -70,7 +69,7 @@ public enum DBusExamples {
                 path: "/org/freedesktop/DBus",
                 interface: "org.freedesktop.DBus",
                 method: "GetConnectionUnixProcessID",
-                args: ["org.freedesktop.DBus"] as [any Sendable],
+                args: "org.freedesktop.DBus",
                 signature: "s",
                 replySignature: "u"
             )

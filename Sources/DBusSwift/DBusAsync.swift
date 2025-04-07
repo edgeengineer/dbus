@@ -41,28 +41,32 @@ public actor DBusAsync {
     ///   - The reply signature is empty (indicating no return values are expected)
     ///   - No reply was received (e.g., for method calls that don't return anything)
     /// - Throws: DBusConnectionError if the call fails
-    public func call(
+    public func call<each Arg: DBusArgument>(
         destination: String,
         path: String,
         interface: String,
         method: String,
-        args: [any Sendable] = [],
+        args: repeat each Arg,
         signature: String = "",
         replySignature: String = "",
         timeoutMS: Int32 = -1
     ) async throws -> [Sendable] {
-        let msg = DBusMessage.createMethodCall(
+        let message = DBusMessage.createMethodCall(
             destination: destination,
             path: path,
             interface: interface,
             method: method
         )
-        
-        if !args.isEmpty {
-            try msg.appendArgs(signature: signature, args: args)
+
+        var iter = DBusMessageIter()
+
+        dbus_message_iter_init_append(message.message, &iter)
+
+        for var arg in repeat each args {
+            try arg.write(into: &iter)
         }
-        
-        if let reply = try connection.send(message: msg, timeoutMS: timeoutMS) {
+
+        if let reply = try connection.send(message: message, timeoutMS: timeoutMS) {
             if replySignature.isEmpty {
                 return []
             } else {
@@ -86,24 +90,28 @@ public actor DBusAsync {
     ///   - args: The arguments to include in the signal
     ///   - signature: The D-Bus signature of the arguments
     /// - Throws: DBusConnectionError if emitting the signal fails
-    public func emitSignal(
+    public func emitSignal<each Arg: DBusArgument>(
         path: String,
         interface: String,
         name: String,
-        args: [any Sendable] = [],
+        args: repeat each Arg,
         signature: String = ""
     ) async throws -> Void {
-        let msg = DBusMessage.createSignal(
+        let message = DBusMessage.createSignal(
             path: path,
             interface: interface,
             name: name
         )
-        
-        if !args.isEmpty {
-            try msg.appendArgs(signature: signature, args: args)
+
+        var iter = DBusMessageIter()
+
+        dbus_message_iter_init_append(message.message, &iter)
+
+        for var arg in repeat each args {
+            try arg.write(into: &iter)
         }
-        
-        _ = try connection.send(message: msg)
+
+        _ = try connection.send(message: message)
         connection.flush()
     }
     

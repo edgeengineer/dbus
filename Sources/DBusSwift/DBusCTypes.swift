@@ -165,7 +165,7 @@ public enum DBusBusType: Int32 {
 ///
 /// This enum represents the various data types used in D-Bus communication.
 /// Each case corresponds to a specific D-Bus type identifier.
-public enum DBusType: Int32, Equatable, Sendable {
+public enum DBusType: Int8, Equatable, Sendable {
     /// Represents an invalid type.
     case invalid = 0
     
@@ -253,6 +253,17 @@ public enum DBusType: Int32, Equatable, Sendable {
     ///
     /// Character: 'e', ASCII value: 101
     case dictEntry = 101
+
+    init?(rawValue: Int32) {
+        guard 
+            rawValue >= 0,
+            rawValue <= 127,
+            let type = DBusType(rawValue: Int8(rawValue)) 
+        else {
+            return nil
+        }
+        self = type
+    }
     
     /// Initialize with a string value
     ///
@@ -294,7 +305,7 @@ public enum DBusType: Int32, Equatable, Sendable {
     ///
     /// - Returns: The corresponding C type constant.
     internal func toCType() -> Int32 {
-        return self.rawValue
+        return Int32(self.rawValue)
     }
     
     /// Initializes a D-Bus type from its string representation.

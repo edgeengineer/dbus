@@ -103,11 +103,7 @@ internal struct DBusError: ~Copyable {
         _name = name
         _message = message
         
-        name.withCString { cName in
-            message.withCString { cMessage in
-                dbus_set_error_const(_error, cName, cMessage)
-            }
-        }
+        dbus_set_error_const(_error, name, message)
     }
     
     deinit {
