@@ -191,7 +191,17 @@ extension Array: DBusArgument where Element: DBusArgument {
             throw DBusConnectionError.messageFailed("Failed to parse \(Self.dbusType), found \(type)")
         }
 
-        throw DBusConnectionError.messageFailed("Unsupported type: \(Self.dbusType.rawValue)")
+        var subIter = DBusMessageIter()
+        dbus_message_iter_recurse(&iter, &subIter)
+        
+        var array: [Element] = []
+        while dbus_message_iter_get_arg_type(&subIter) != Int32(DBusType.invalid.rawValue) {
+            let element = try Element(from: &subIter)
+            array.append(element)
+            dbus_message_iter_next(&subIter)
+        }
+        
+        self = array
     }
 }
 
@@ -447,106 +457,4 @@ public struct DBusMessage: ~Copyable, @unchecked Sendable {
         }
     }
     
-    /// Extracts arguments from the message
-    /// - Parameter signature: The D-Bus signature of the arguments
-    /// - Returns: The extracted arguments
-    /// - Throws: DBusConnectionError if extracting arguments fails
-    public func getArgs(signature: String) throws -> [Any] {
-        guard let message = message else {
-            throw DBusConnectionError.messageFailed("Invalid message")
-        }
-        
-        var iter = DBusMessageIter()
-        var args: [Any] = []
-        
-        if dbus_message_iter_init(message, &iter) == 0 {
-            // No arguments
-            return []
-        }
-        
-        var signatureIndex = signature.startIndex
-        
-        repeat {
-            guard signatureIndex < signature.endIndex else {
-                break
-            }
-            
-            let typeChar = signature[signatureIndex]
-            signatureIndex = signature.index(after: signatureIndex)
-            
-            if let arg = try extractArgFromIter(iter: &iter, typeChar: typeChar) {
-                args.append(arg)
-            }
-            
-        } while dbus_message_iter_next(&iter) != 0
-        
-        return args
-    }
-    
-    // Helper function to extract a single argument from a message iterator
-    private func extractArgFromIter(iter: inout DBusMessageIter, typeChar: Character) throws -> Any? {
-        let type = dbus_message_iter_get_arg_type(&iter)
-
-        guard let type = DBusType(rawValue: type), type != .invalid else {
-            return nil
-        }
-
-        switch type {
-        case .byte:
-            var val: UInt8 = 0
-            dbus_message_iter_get_basic(&iter, &val)
-            return val
-            
-        case .boolean:
-            var val: DBusBool = 0
-            dbus_message_iter_get_basic(&iter, &val)
-            return val != 0
-            
-        case .int16:
-            var val: Int16 = 0
-            dbus_message_iter_get_basic(&iter, &val)
-            return val
-            
-        case .uint16:
-            var val: UInt16 = 0
-            dbus_message_iter_get_basic(&iter, &val)
-            return val
-            
-        case .int32:
-            var val: Int32 = 0
-            dbus_message_iter_get_basic(&iter, &val)
-            return val
-            
-        case .uint32:
-            var val: UInt32 = 0
-            dbus_message_iter_get_basic(&iter, &val)
-            return val
-            
-        case .int64:
-            var val: Int64 = 0
-            dbus_message_iter_get_basic(&iter, &val)
-            return val
-            
-        case .uint64:
-            var val: UInt64 = 0
-            dbus_message_iter_get_basic(&iter, &val)
-            return val
-            
-        case .double:
-            var val: Double = 0
-            dbus_message_iter_get_basic(&iter, &val)
-            return val
-            
-        case .string, .objectPath, .signature:
-            var cString: UnsafePointer<CChar>? = nil
-            dbus_message_iter_get_basic(&iter, &cString)
-            if let cString = cString {
-                return String(validatingCString: cString)
-            }
-            return nil
-            
-        default:
-            throw DBusConnectionError.messageFailed("Unsupported type: \(type)")
-        }
-    }
 }
