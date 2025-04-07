@@ -139,7 +139,7 @@ struct DBusSwiftTests {
         // Request a unique name that's unlikely to be taken
         let uuid = UUID().uuidString
         let safeName = uuid.replacing("-", with: "")
-        let result = try await connection.requestName(name: "org.swift.DBusTest.\(safeName)")
+        let result = try await connection.requestName(name: "org.swift.DBusTest.uuid-\(safeName)")
         #expect(result == 1) // DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER
     }
     #endif

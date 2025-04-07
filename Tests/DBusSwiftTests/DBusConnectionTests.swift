@@ -69,7 +69,7 @@ struct DBusConnectionTests {
             // Send the message
             try await confirmation { confirm in
                 // Create a message to request a name
-                let uniqueName = "org.swift.dbus.test.\(UUID().uuidString.replacing("-", with: ""))"
+                let uniqueName = "org.swift.dbus.test.uuid-\(UUID().uuidString.replacing("-", with: ""))"
                 var msg = DBusMessage.createMethodCall(
                     destination: "org.freedesktop.DBus",
                     path: "/org/freedesktop/DBus",
