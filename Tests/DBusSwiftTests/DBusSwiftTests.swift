@@ -138,7 +138,7 @@ struct DBusSwiftTests {
         let connection = try DBusConnection(busType: .session)
         // Request a unique name that's unlikely to be taken
         let uuid = UUID().uuidString
-        let safeName = uuid.replacing("-", with: "_")
+        let safeName = uuid.replacing("-", with: "")
         let result = try await connection.requestName(name: "org.swift.DBusTest.\(safeName)")
         #expect(result == 1) // DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER
     }
