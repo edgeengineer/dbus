@@ -57,7 +57,7 @@ struct DBusSwiftTests {
         let msg = DBusMessage(type: .methodCall)
         
         do {
-            try msg.appendArgs(signature: "sib", args: ["hello", 42, true])
+            try msg.appendArgs(signature: "sib", args: "hello", 42, true)
         } catch {
             print("Failed to append arguments: \(error)")
             #expect(Bool(false), "Should not throw when appending valid arguments")
@@ -107,14 +107,14 @@ struct DBusSwiftTests {
         let msg = DBusMessage(type: .methodCall)
         
         do {
-            try msg.appendArgs(signature: "sidbyx", args: [
+            try msg.appendArgs(signature: "sidbyx", args:
                 "hello",
                 Int32(42),
                 3.14,
                 true,
                 UInt8(255),
                 Int64(12345)
-            ])
+            )
         } catch {
             print("Failed to append arguments: \(error)")
             #expect(Bool(false), "Should not throw when appending valid arguments")
