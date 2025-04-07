@@ -144,9 +144,7 @@ public final class DBusConnection: @unchecked Sendable {
         var cError = CDBus.DBusError()
         dbus_error_init(&cError)
         
-        rule.withCString { cRule in
-            dbus_bus_add_match(connection, cRule, &cError)
-        }
+        dbus_bus_add_match(connection, rule, &cError)
         
         if dbus_error_is_set(&cError) != 0 {
             let errorMessage = String(cString: cError.message)
@@ -166,9 +164,7 @@ public final class DBusConnection: @unchecked Sendable {
         var cError = CDBus.DBusError()
         dbus_error_init(&cError)
         
-        rule.withCString { cRule in
-            dbus_bus_remove_match(connection, cRule, &cError)
-        }
+        dbus_bus_remove_match(connection, rule, &cError)
         
         if dbus_error_is_set(&cError) != 0 {
             let errorMessage = String(cString: cError.message)
@@ -190,9 +186,7 @@ public final class DBusConnection: @unchecked Sendable {
         var cError = CDBus.DBusError()
         dbus_error_init(&cError)
         
-        let result = name.withCString { cName in
-            dbus_bus_request_name(connection, cName, flags, &cError)
-        }
+        let result = dbus_bus_request_name(connection, name, flags, &cError)
         
         if dbus_error_is_set(&cError) != 0 {
             let errorMessage = String(cString: cError.message)
