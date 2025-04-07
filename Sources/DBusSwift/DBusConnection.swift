@@ -192,10 +192,8 @@ public actor DBusConnection {
     public func requestName(name: String, flags: UInt32 = 0) throws -> Int32 {
         nonisolated(unsafe) var cError = CDBus.DBusError()
         dbus_error_init(&cError)
-        
-        let result = name.withCString { cName in
-            dbus_bus_request_name(connection, cName, flags, &cError)
-        }
+
+        let result = dbus_bus_request_name(connection, name, flags, &cError)
         
         if dbus_error_is_set(&cError) != 0 {
             let errorMessage = String(cString: cError.message)
