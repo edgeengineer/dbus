@@ -178,7 +178,11 @@ internal struct DBusError: ~Copyable {
         _name = name
         _message = message
         
-        dbus_set_error_const(_error, name, message)
+        name.withCString { cName in
+            message.withCString { cMessage in
+                dbus_set_error_const(_error, cName, cMessage)
+            }
+        }
     }
     
     /// Gets the underlying C DBusError structure.
@@ -196,8 +200,10 @@ internal struct DBusError: ~Copyable {
     /// let error = DBusError()
     /// 
     /// // Call a C API function that requires a DBusError pointer
-    /// let connection = dbus_bus_get(DBUS_BUS_SESSION, error.getError())
-    /// 
+    /// let connection = error.withError { dbusError in
+    ///     dbus_bus_get(DBUS_BUS_SESSION, &dbusError)
+    /// }
+    ///
     /// // Check if an error occurred
     /// if error.isSet {
     ///     print("Failed to connect to the session bus: \(error.message ?? "")")

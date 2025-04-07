@@ -6,7 +6,7 @@ import Foundation
 #endif
 
 /// Provides a Swift concurrency-compatible interface for D-Bus operations
-public actor DBusAsync {
+public struct DBusAsync {
     private let connection: DBusConnection
     
     /// Initializes a new D-Bus async interface
@@ -41,16 +41,15 @@ public actor DBusAsync {
     ///   - The reply signature is empty (indicating no return values are expected)
     ///   - No reply was received (e.g., for method calls that don't return anything)
     /// - Throws: DBusConnectionError if the call fails
-    public func call<each Arg: DBusArgument>(
+    public func call<each Arg: DBusArgument, R: Sendable>(
         destination: String,
         path: String,
         interface: String,
         method: String,
         args: repeat each Arg,
-        signature: String = "",
-        replySignature: String = "",
-        timeoutMS: Int32 = -1
-    ) async throws -> [Sendable] {
+        timeoutMS: Int32 = -1,
+        withReply: @Sendable (inout DBusMessage) async throws -> R
+    ) async throws -> R? {
         let message = DBusMessage.createMethodCall(
             destination: destination,
             path: path,
@@ -59,22 +58,17 @@ public actor DBusAsync {
         )
 
         var iter = DBusMessageIter()
-
         dbus_message_iter_init_append(message.message, &iter)
 
         for var arg in repeat each args {
             try arg.write(into: &iter)
         }
 
-        if let reply = try connection.send(message: message, timeoutMS: timeoutMS) {
-            if replySignature.isEmpty {
-                return []
-            } else {
-                return try reply.getArgs(signature: replySignature).map { convertToSendable($0) }
-            }
-        } else {
-            return []
-        }
+        return try await connection.send(
+            message: message,
+            timeoutMS: timeoutMS,
+            withReply: withReply
+        )
     }
     
     /// Emits a signal on the bus
@@ -94,9 +88,8 @@ public actor DBusAsync {
         path: String,
         interface: String,
         name: String,
-        args: repeat each Arg,
-        signature: String = ""
-    ) async throws -> Void {
+        args: repeat each Arg
+    ) async throws {
         let message = DBusMessage.createSignal(
             path: path,
             interface: interface,
@@ -111,8 +104,8 @@ public actor DBusAsync {
             try arg.write(into: &iter)
         }
 
-        _ = try connection.send(message: message)
-        connection.flush()
+        try await connection.send(message: message)
+        await connection.flush()
     }
     
     /// Registers for signals on the bus
@@ -121,7 +114,7 @@ public actor DBusAsync {
     ///   - name: The signal name (or empty string for all signals)
     ///   - path: The object path to listen for signals on (or empty string for all paths)
     /// - Throws: DBusConnectionError if registering for signals fails
-    public func registerForSignals(interface: String, name: String = "", path: String = "") throws -> Void {
+    public func registerForSignals(interface: String, name: String = "", path: String = "") async throws -> Void {
         var rule = "type='signal',interface='\(interface)'"
         
         if !name.isEmpty {
@@ -132,7 +125,7 @@ public actor DBusAsync {
             rule += ",path='\(path)'"
         }
         
-        try connection.addMatch(rule: rule)
+        try await connection.addMatch(rule: rule)
     }
     
     /// Unregisters from signals on the bus
@@ -141,7 +134,7 @@ public actor DBusAsync {
     ///   - name: The signal name (or empty string for all signals)
     ///   - path: The object path to listen for signals on (or empty string for all paths)
     /// - Throws: DBusConnectionError if unregistering from signals fails
-    public func unregisterFromSignals(interface: String, name: String = "", path: String = "") throws -> Void {
+    public func unregisterFromSignals(interface: String, name: String = "", path: String = "") async throws -> Void {
         var rule = "type='signal',interface='\(interface)'"
         
         if !name.isEmpty {
@@ -152,49 +145,6 @@ public actor DBusAsync {
             rule += ",path='\(path)'"
         }
         
-        try connection.removeMatch(rule: rule)
-    }
-    
-    // Helper function to convert Any to Sendable
-    private func convertToSendable(_ value: Any) -> Sendable {
-        switch value {
-        case let val as String:
-            return val
-        case let val as Int:
-            return val
-        case let val as Int32:
-            return val
-        case let val as UInt32:
-            return val
-        case let val as Bool:
-            return val
-        case let val as Double:
-            return val
-        case let val as [Any]:
-            return val.map { convertToSendable($0) }
-        default:
-            return "\(value)" // Fallback to string representation
-        }
-    }
-}
-
-// Extending DBusMessage with async methods
-extension DBusMessage {
-    /// Sends the message on the given connection and returns the reply asynchronously
-    ///
-    /// This method is marked as `async` to allow it to be called from within actors and other
-    /// asynchronous contexts. The actual D-Bus operation is synchronous, but wrapping it in an
-    /// async method allows it to integrate with Swift's structured concurrency model.
-    ///
-    /// - Parameters:
-    ///   - connection: The connection to send the message on
-    ///   - timeoutMS: Timeout in milliseconds, -1 for default, 0 for no timeout
-    /// - Returns: The reply message if one was requested and received. Returns `nil` if:
-    ///   - The message is not a method call (e.g., it's a signal)
-    ///   - The message has the no-reply flag set
-    ///   - The message was sent successfully but no reply is expected
-    /// - Throws: DBusConnectionError if sending the message fails
-    public func send(on connection: DBusConnection, timeoutMS: Int32 = -1) async throws -> DBusMessage? {
-        return try connection.send(message: self, timeoutMS: timeoutMS)
+        try await connection.removeMatch(rule: rule)
     }
 }

@@ -119,7 +119,7 @@ public enum DBusMessageType: Int32, Equatable, Sendable {
 ///
 /// Applications connect to these buses to communicate with other applications or
 /// system services in a standardized way.
-public enum DBusBusType: Int32 {
+public enum DBusBusType: Int32, Sendable {
     /// Represents the session-specific D-Bus bus.
     ///
     /// The session bus is specific to a user login session and is used for communication

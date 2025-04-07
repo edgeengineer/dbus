@@ -10,9 +10,28 @@ import FoundationEssentials
 import Foundation
 #endif
 
-public protocol DBusArgument {
+public protocol DBusArgument: Sendable {
     static var dbusType: DBusType { get }
+    init(from iter: inout DBusMessageIter) throws
     mutating func write(into iter: inout DBusMessageIter) throws
+}
+
+extension DBusMessageIter {
+    public mutating func parse<Value: DBusArgument>(
+        as value: Value.Type
+    ) throws -> Value {
+        try Value(from: &self)
+    }
+}
+
+extension DBusMessage {
+    public mutating func parse<Value: DBusArgument>(
+        as value: Value.Type
+    ) throws -> Value {
+        try withValues { iter in
+            try Value(from: &iter)
+        }
+    }
 }
 
 extension DBusArgument where Self: FixedWidthInteger {
@@ -22,6 +41,18 @@ extension DBusArgument where Self: FixedWidthInteger {
         if dbus_message_iter_append_basic(&iter, Int32(Self.dbusType.rawValue), &self) == 0 {
             throw DBusConnectionError.messageFailed("Failed to append \(Self.dbusType)")
         }
+    }
+
+    public init(from iter: inout DBusMessageIter) throws {
+        let type = dbus_message_iter_get_arg_type(&iter)
+
+        guard type == Self.dbusType.rawValue else {
+            throw DBusConnectionError.messageFailed("Failed to parse \(Self.dbusType), found \(type)")
+        }
+
+        var value: Self = 0
+        dbus_message_iter_get_basic(&iter, &value)
+        self = value
     }
 }
 
@@ -36,6 +67,18 @@ extension Bool: DBusArgument {
         if dbus_message_iter_append_basic(&iter, Int32(Self.dbusType.rawValue), &value) == 0 {
             throw DBusConnectionError.messageFailed("Failed to append \(Self.dbusType)")
         }
+    }
+
+    public init(from iter: inout DBusMessageIter) throws {
+        let type = dbus_message_iter_get_arg_type(&iter)
+
+        guard type == Self.dbusType.rawValue else {
+            throw DBusConnectionError.messageFailed("Failed to parse \(Self.dbusType), found \(type)")
+        }
+
+        var val: DBusBool = 0
+        dbus_message_iter_get_basic(&iter, &val)
+        self = val != 0
     }
 }
 
@@ -70,16 +113,45 @@ extension Double: DBusArgument {
             throw DBusConnectionError.messageFailed("Failed to append \(Self.dbusType)")
         }
     }
+
+    public init(from iter: inout DBusMessageIter) throws {
+        let type = dbus_message_iter_get_arg_type(&iter)
+
+        guard type == Self.dbusType.rawValue else {
+            throw DBusConnectionError.messageFailed("Failed to parse \(Self.dbusType), found \(type)")
+        }
+
+        var val: Double = 0
+        dbus_message_iter_get_basic(&iter, &val)
+        self = val
+    }
 }
 
 extension String: DBusArgument {
     public static var dbusType: DBusType { .string }
     public mutating func write(into iter: inout DBusMessageIter) throws {
         let result = withCString { cString in
-            dbus_message_iter_append_basic(&iter, Int32(Self.dbusType.rawValue), cString)
+            var cString = cString
+            return dbus_message_iter_append_basic(&iter, Int32(Self.dbusType.rawValue), &cString)
         }
 
         if result == 0 {
+            throw DBusConnectionError.messageFailed("Failed to append \(Self.dbusType)")
+        }
+    }
+
+    public init(from iter: inout DBusMessageIter) throws {
+        let type = dbus_message_iter_get_arg_type(&iter)
+
+        guard type == Self.dbusType.rawValue else {
+            throw DBusConnectionError.messageFailed("Failed to parse \(Self.dbusType), found \(type)")
+        }
+
+        var cString: UnsafePointer<CChar>? = nil
+        dbus_message_iter_get_basic(&iter, &cString)
+        if let cString, let string = String(validatingCString: cString) {
+            self = string
+        } else {
             throw DBusConnectionError.messageFailed("Failed to append \(Self.dbusType)")
         }
     }
@@ -111,13 +183,33 @@ extension Array: DBusArgument where Element: DBusArgument {
             throw DBusConnectionError.messageFailed("Failed to close array container")
         }
     }
+
+    public init(from iter: inout DBusMessageIter) throws {
+        let type = dbus_message_iter_get_arg_type(&iter)
+
+        guard type == Self.dbusType.rawValue else {
+            throw DBusConnectionError.messageFailed("Failed to parse \(Self.dbusType), found \(type)")
+        }
+
+        throw DBusConnectionError.messageFailed("Unsupported type: \(Self.dbusType.rawValue)")
+    }
 }
 
 /// Represents a D-Bus message
-public class DBusMessage {
+public struct DBusMessage: ~Copyable, @unchecked Sendable {
     private(set) var message: OpaquePointer?
     private var freeOnDeinit: Bool
-    
+
+    public func withValues<R>(
+        parse: (inout DBusMessageIter) throws -> R
+    ) throws -> R {
+        var iter = DBusMessageIter()
+        if dbus_message_iter_init(message, &iter) == 0 {
+            throw DBusConnectionError.parsingFailed("Could not construct message iterator")
+        }
+        return try parse(&iter)
+    }
+
     /// Initializes a new D-Bus message
     /// - Parameter type: The message type
     public init(type: DBusMessageType) {
@@ -173,16 +265,10 @@ public class DBusMessage {
         }
     }
     
-    /// Returns the underlying D-Bus message pointer
-    /// - Returns: The D-Bus message pointer
-    public func getMessage() -> OpaquePointer? {
-        return message
-    }
-    
     /// Gets the message type
     /// - Returns: The message type
-    public func getMessageType() -> DBusMessageType {
-        guard let message = message else {
+    public var messageType: DBusMessageType {
+        guard let message else {
             return .invalid
         }
         
@@ -192,106 +278,84 @@ public class DBusMessage {
     
     /// Gets the interface of the message
     public var interface: String? {
-        get {
-            guard let message else {
-                return nil
-            }
-            
-            guard let cInterface = dbus_message_get_interface(message) else {
-                return nil
-            }
-            
-            return String(cString: cInterface)
+        guard let message else {
+            return nil
         }
+
+        guard let cInterface = dbus_message_get_interface(message) else {
+            return nil
+        }
+
+        return String(cString: cInterface)
     }
     
     /// Gets the member (method or signal name) of the message
     public var member: String? {
-        get {
-            guard let message else {
-                return nil
-            }
-            
-            guard let cMember = dbus_message_get_member(message) else {
-                return nil
-            }
-            
-            return String(cString: cMember)
+        guard let message else {
+            return nil
         }
+
+        guard let cMember = dbus_message_get_member(message) else {
+            return nil
+        }
+
+        return String(cString: cMember)
     }
     
     /// Gets the path of the message
     public var path: String? {
-        get {
-            guard let message else {
-                return nil
-            }
-            
-            guard let cPath = dbus_message_get_path(message) else {
-                return nil
-            }
-            
-            return String(cString: cPath)
+        guard let message else {
+            return nil
         }
+
+        guard let cPath = dbus_message_get_path(message) else {
+            return nil
+        }
+
+        return String(cString: cPath)
     }
     
     /// Gets the destination of the message
     public var destination: String? {
-        get {
-            guard let message else {
-                return nil
-            }
-            
-            guard let cDestination = dbus_message_get_destination(message) else {
-                return nil
-            }
-            
-            return String(cString: cDestination)
+        guard let message else {
+            return nil
         }
+
+        guard let cDestination = dbus_message_get_destination(message) else {
+            return nil
+        }
+
+        return String(cString: cDestination)
     }
     
     /// Gets the sender of the message
     public var sender: String? {
-        get {
-            guard let message else {
-                return nil
-            }
-            
-            guard let cSender = dbus_message_get_sender(message) else {
-                return nil
-            }
-            
-            return String(cString: cSender)
+        guard let message else {
+            return nil
         }
-    }
-    
-    /// Gets the destination of the message
-    /// - Returns: The destination of the message, or nil if not set
-    public func getDestination() -> String? {
-        return destination
+
+        guard let cSender = dbus_message_get_sender(message) else {
+            return nil
+        }
+
+        return String(cString: cSender)
     }
     
     /// Sets the destination of the message
     /// - Parameter destination: The destination to set
     /// - Returns: true if successful, false otherwise
     @discardableResult
-    public func setDestination(_ destination: String) -> Bool {
+    public mutating func setDestination(_ destination: String) -> Bool {
         guard let message else { return false }
         
         return dbus_message_set_destination(message, destination) != 0
-    }
-    
-    /// Gets the path of the message
-    /// - Returns: The path of the message, or nil if not set
-    public func getPath() -> String? {
-        return path
     }
     
     /// Sets the path of the message
     /// - Parameter path: The path to set
     /// - Returns: true if successful, false otherwise
     @discardableResult
-    public func setPath(_ path: String) -> Bool {
+    public mutating func setPath(_ path: String) -> Bool {
         guard let message else {
             return false
         }
@@ -299,17 +363,11 @@ public class DBusMessage {
         return dbus_message_set_path(message, path) != 0
     }
     
-    /// Gets the interface of the message
-    /// - Returns: The interface of the message, or nil if not set
-    public func getInterface() -> String? {
-        return interface
-    }
-    
     /// Sets the interface of the message
     /// - Parameter interface: The interface to set
     /// - Returns: true if successful, false otherwise
     @discardableResult
-    public func setInterface(_ interface: String) -> Bool {
+    public mutating func setInterface(_ interface: String) -> Bool {
         guard let message else {
             return false
         }
@@ -317,17 +375,11 @@ public class DBusMessage {
         return dbus_message_set_interface(message, interface) != 0
     }
     
-    /// Gets the member of the message
-    /// - Returns: The member of the message, or nil if not set
-    public func getMember() -> String? {
-        return member
-    }
-    
     /// Sets the member of the message
     /// - Parameter member: The member to set
     /// - Returns: true if successful, false otherwise
     @discardableResult
-    public func setMember(_ member: String) -> Bool {
+    public mutating func setMember(_ member: String) -> Bool {
         guard let message else {
             return false
         }
@@ -335,17 +387,11 @@ public class DBusMessage {
         return dbus_message_set_member(message, member) != 0
     }
     
-    /// Gets the sender of the message
-    /// - Returns: The sender of the message, or nil if not set
-    public func getSender() -> String? {
-        return sender
-    }
-    
     /// Sets the sender of the message
     /// - Parameter sender: The sender to set
     /// - Returns: true if successful, false otherwise
     @discardableResult
-    public func setSender(_ sender: String) -> Bool {
+    public mutating func setSender(_ sender: String) -> Bool {
         guard let message else {
             return false
         }
@@ -357,7 +403,7 @@ public class DBusMessage {
     /// - Parameter autoStart: Whether to auto-start the service
     /// - Returns: true if successful, false otherwise
     @discardableResult
-    public func setAutoStart(_ autoStart: Bool) -> Bool {
+    public mutating func setAutoStart(_ autoStart: Bool) -> Bool {
         guard let message else { return false }
         dbus_message_set_auto_start(message, autoStart ? 1 : 0)
         return true
@@ -375,7 +421,7 @@ public class DBusMessage {
     ///   - signature: The D-Bus signature of the arguments
     ///   - args: The arguments to append
     /// - Throws: DBusConnectionError if appending arguments fails
-    public func appendArgs<each Arg: DBusArgument>(signature: String, args: repeat each Arg) throws {
+    public mutating func appendArgs<each Arg: DBusArgument>(signature: String, args: repeat each Arg) throws {
         var iter = DBusMessageIter()
         
         dbus_message_iter_init_append(message, &iter)
@@ -388,7 +434,7 @@ public class DBusMessage {
     /// Appends arguments to the message with automatic signature detection
     /// - Parameter args: The arguments to append
     /// - Throws: DBusConnectionError if appending arguments fails
-    public func appendArguments<each Arg: DBusArgument>(_ args: repeat each Arg) throws {
+    public mutating func appendArguments<each Arg: DBusArgument>(_ args: repeat each Arg) throws {
         guard let message = message else {
             throw DBusConnectionError.messageFailed("Invalid message")
         }

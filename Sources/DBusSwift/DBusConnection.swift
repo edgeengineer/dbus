@@ -16,7 +16,12 @@ public enum DBusConnectionError: Error, CustomStringConvertible {
     ///
     /// - Parameter reason: A string describing why the message operation failed
     case messageFailed(String)
-    
+
+    /// Indicates that parsing the DBus message failed
+    ///
+    /// - Parameter reason: A string describing why the message operation failed
+    case parsingFailed(String)
+
     /// Indicates that a D-Bus reply was invalid or could not be processed
     ///
     /// - Parameter reason: A string describing why the reply was invalid
@@ -31,6 +36,8 @@ public enum DBusConnectionError: Error, CustomStringConvertible {
             return "D-Bus connection failed: \(reason)"
         case .messageFailed(let reason):
             return "D-Bus message failed: \(reason)"
+        case .parsingFailed(let reason):
+            return "D-Bus message parsing failed: \(reason)"
         case .invalidReply(let reason):
             return "Invalid D-Bus reply: \(reason)"
         case .notSupported:
@@ -40,8 +47,8 @@ public enum DBusConnectionError: Error, CustomStringConvertible {
 }
 
 /// Represents a connection to a D-Bus bus
-public final class DBusConnection: @unchecked Sendable {
-    private var connection: OpaquePointer?
+public actor DBusConnection {
+    package nonisolated(unsafe) let connection: OpaquePointer
     private var busType: DBusBusType
     
     /// Initializes a new connection to a D-Bus bus
@@ -55,8 +62,8 @@ public final class DBusConnection: @unchecked Sendable {
         dbus_error_init(&cError)
         
         // Connect to the bus using the enum's raw value directly
-        connection = _dbus_bus_get(busType.rawValue, &cError)
-        
+        let connection = _dbus_bus_get(busType.rawValue, &cError)
+
         // Check for errors
         if dbus_error_is_set(&cError) != 0 {
             let errorMessage = String(cString: cError.message)
@@ -64,48 +71,55 @@ public final class DBusConnection: @unchecked Sendable {
             throw DBusConnectionError.connectionFailed(errorMessage)
         }
         
-        if connection == nil {
+        guard let connection else {
             throw DBusConnectionError.connectionFailed("Failed to connect to D-Bus")
         }
+
+        self.connection = connection
     }
     
     deinit {
-        if let connection = connection {
-            dbus_connection_unref(connection)
-        }
-    }
-    
-    /// Returns the underlying D-Bus connection pointer
-    /// - Returns: The D-Bus connection pointer
-    public func getConnection() -> OpaquePointer? {
-        return connection
+        dbus_connection_unref(connection)
     }
     
     /// Flushes the connection, sending any pending outgoing messages
     public func flush() {
-        if let connection = connection {
-            dbus_connection_flush(connection)
-        }
+        dbus_connection_flush(connection)
     }
-    
+
     /// Sends a message on the bus and optionally waits for a reply
     /// - Parameters:
     ///   - message: The message to send
     ///   - timeoutMS: Timeout in milliseconds, -1 for default, 0 for no timeout
     /// - Returns: The reply message if one was requested
     /// - Throws: DBusConnectionError if sending the message fails
-    public func send(message: DBusMessage, timeoutMS: Int32 = -1) throws -> DBusMessage? {
-        guard let connection = connection else {
-            throw DBusConnectionError.connectionFailed("No active connection")
-        }
-        
-        guard let messagePtr = message.getMessage() else {
+    public func send(
+        message: consuming DBusMessage,
+        timeoutMS: Int32 = -1
+    ) async throws {
+        try await send(message: message, timeoutMS: timeoutMS, withReply: { _ in })
+    }
+
+    /// Sends a message on the bus and optionally waits for a reply
+    /// - Parameters:
+    ///   - message: The message to send
+    ///   - timeoutMS: Timeout in milliseconds, -1 for default, 0 for no timeout
+    /// - Returns: The reply message if one was requested
+    /// - Throws: DBusConnectionError if sending the message fails
+    public func send<R: Sendable>(
+        message: consuming DBusMessage,
+        timeoutMS: Int32 = -1,
+        withReply: @Sendable (inout DBusMessage) async throws -> R
+    ) async throws -> R? {
+        guard let messagePtr = message.message else {
             throw DBusConnectionError.messageFailed("Invalid message")
         }
         
         // If this is a method call with a reply expected
-        if message.getMessageType() == .methodCall && 
-           dbus_message_get_no_reply(messagePtr) == 0 {
+        if
+            message.messageType == .methodCall,
+            dbus_message_get_no_reply(messagePtr) == 0
+        {
             var cError = CDBus.DBusError()
             dbus_error_init(&cError)
             
@@ -118,7 +132,8 @@ public final class DBusConnection: @unchecked Sendable {
             }
             
             if let replyPtr = replyPtr {
-                return DBusMessage(message: replyPtr, freeOnDeinit: true)
+                var message = DBusMessage(message: replyPtr, freeOnDeinit: true)
+                return try await withReply(&message)
             } else {
                 throw DBusConnectionError.invalidReply("No reply received")
             }
@@ -137,14 +152,12 @@ public final class DBusConnection: @unchecked Sendable {
     /// - Parameter rule: The match rule
     /// - Throws: DBusConnectionError if adding the match rule fails
     public func addMatch(rule: String) throws {
-        guard let connection = connection else {
-            throw DBusConnectionError.connectionFailed("No active connection")
-        }
-        
-        var cError = CDBus.DBusError()
+        nonisolated(unsafe) var cError = CDBus.DBusError()
         dbus_error_init(&cError)
         
-        dbus_bus_add_match(connection, rule, &cError)
+        rule.withCString { cRule in
+            dbus_bus_add_match(connection, cRule, &cError)
+        }
         
         if dbus_error_is_set(&cError) != 0 {
             let errorMessage = String(cString: cError.message)
@@ -157,14 +170,12 @@ public final class DBusConnection: @unchecked Sendable {
     /// - Parameter rule: The match rule to remove
     /// - Throws: DBusConnectionError if removing the match rule fails
     public func removeMatch(rule: String) throws {
-        guard let connection = connection else {
-            throw DBusConnectionError.connectionFailed("No active connection")
-        }
-        
-        var cError = CDBus.DBusError()
+        nonisolated(unsafe) var cError = CDBus.DBusError()
         dbus_error_init(&cError)
         
-        dbus_bus_remove_match(connection, rule, &cError)
+        rule.withCString { cRule in
+            dbus_bus_remove_match(connection, cRule, &cError)
+        }
         
         if dbus_error_is_set(&cError) != 0 {
             let errorMessage = String(cString: cError.message)
@@ -179,14 +190,12 @@ public final class DBusConnection: @unchecked Sendable {
     /// - Returns: A result code indicating the outcome of the request
     /// - Throws: DBusConnectionError if the request fails
     public func requestName(name: String, flags: UInt32 = 0) throws -> Int32 {
-        guard let connection = connection else {
-            throw DBusConnectionError.connectionFailed("No active connection")
-        }
-        
-        var cError = CDBus.DBusError()
+        nonisolated(unsafe) var cError = CDBus.DBusError()
         dbus_error_init(&cError)
         
-        let result = dbus_bus_request_name(connection, name, flags, &cError)
+        let result = name.withCString { cName in
+            dbus_bus_request_name(connection, cName, flags, &cError)
+        }
         
         if dbus_error_is_set(&cError) != 0 {
             let errorMessage = String(cString: cError.message)
