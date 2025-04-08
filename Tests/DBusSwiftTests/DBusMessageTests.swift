@@ -10,22 +10,22 @@ struct DBusMessageTests {
     func testMessageTypeCreation() throws {
         // Test method call creation
         let methodCall = DBusMessage(type: .methodCall)
-        let methodCallType = methodCall.getMessageType()
+        let methodCallType = methodCall.messageType
         #expect(methodCallType == .methodCall)
         
         // Test signal creation
         let signal = DBusMessage(type: .signal)
-        let signalType = signal.getMessageType()
+        let signalType = signal.messageType
         #expect(signalType == .signal)
         
         // Test method return creation
         let methodReturn = DBusMessage(type: .methodReturn)
-        let methodReturnType = methodReturn.getMessageType()
+        let methodReturnType = methodReturn.messageType
         #expect(methodReturnType == .methodReturn)
         
         // Test error message creation
         let errorMsg = DBusMessage(type: .error)
-        let errorType = errorMsg.getMessageType()
+        let errorType = errorMsg.messageType
         #expect(errorType == .error)
     }
     
@@ -39,14 +39,14 @@ struct DBusMessageTests {
             method: "ListNames"
         )
         
-        let messageType = msg.getMessageType()
+        let messageType = msg.messageType
         #expect(messageType == .methodCall)
         
         // Verify message properties
-        #expect(msg.getDestination() == "org.freedesktop.DBus")
-        #expect(msg.getPath() == "/org/freedesktop/DBus")
-        #expect(msg.getInterface() == "org.freedesktop.DBus")
-        #expect(msg.getMember() == "ListNames")
+        #expect(msg.destination == "org.freedesktop.DBus")
+        #expect(msg.path == "/org/freedesktop/DBus")
+        #expect(msg.interface == "org.freedesktop.DBus")
+        #expect(msg.member == "ListNames")
     }
     
     /// Tests the creation of signal messages with specific parameters.
@@ -58,19 +58,19 @@ struct DBusMessageTests {
             name: "ExampleSignal"
         )
         
-        let messageType = msg.getMessageType()
+        let messageType = msg.messageType
         #expect(messageType == .signal)
         
         // Verify message properties
-        #expect(msg.getPath() == "/org/example/Path")
-        #expect(msg.getInterface() == "org.example.Interface")
-        #expect(msg.getMember() == "ExampleSignal")
+        #expect(msg.path == "/org/example/Path")
+        #expect(msg.interface == "org.example.Interface")
+        #expect(msg.member == "ExampleSignal")
     }
     
     /// Tests the message headers functionality.
     @Test("Message Headers")
     func testMessageHeaders() throws {
-        let msg = DBusMessage.createMethodCall(
+        var msg = DBusMessage.createMethodCall(
             destination: "org.freedesktop.DBus",
             path: "/org/freedesktop/DBus",
             interface: "org.freedesktop.DBus",
@@ -83,17 +83,17 @@ struct DBusMessageTests {
         
         // Set a destination
         msg.setDestination("org.example.NewDestination")
-        #expect(msg.getDestination() == "org.example.NewDestination")
-        
+        #expect(msg.destination == "org.example.NewDestination")
+
         // Set a sender
         msg.setSender("org.example.Sender")
-        #expect(msg.getSender() == "org.example.Sender")
+        #expect(msg.sender == "org.example.Sender")
     }
     
     /// Tests appending arguments to a message.
     @Test("Argument Handling")
     func testArgumentHandling() throws {
-        let msg = DBusMessage.createMethodCall(
+        var msg = DBusMessage.createMethodCall(
             destination: "org.freedesktop.DBus",
             path: "/org/freedesktop/DBus",
             interface: "org.freedesktop.DBus",

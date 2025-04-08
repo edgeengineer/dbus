@@ -15,18 +15,13 @@ public enum DBusExamples {
             let dbus = try DBusAsync(busType: .system)
             
             // Call the ListNames method on the D-Bus service
-            let result = try await dbus.call(
+            try await dbus.call(
                 destination: "org.freedesktop.DBus",
                 path: "/org/freedesktop/DBus",
                 interface: "org.freedesktop.DBus",
-                method: "ListNames",
-                args: [] as [any Sendable],
-                signature: "",
-                replySignature: "as"
-            )
-            
-            // The result is an array of Any type, but we know it's an array of strings
-            if let services = result.first as? [String] {
+                method: "ListNames"
+            ) { reply in
+                let services = try reply.parse(as: [String].self)
                 print("Available D-Bus services:")
                 for service in services {
                     print("- \(service)")
@@ -48,8 +43,7 @@ public enum DBusExamples {
                 path: "/org/example/Path",
                 interface: "org.example.Interface",
                 name: "ExampleSignal",
-                args: ["Hello from Swift!", 42] as [any Sendable],
-                signature: "si"
+                args: "Hello from Swift!", 42
             )
             
             print("Signal emitted successfully")
@@ -70,12 +64,12 @@ public enum DBusExamples {
                 path: "/org/freedesktop/DBus",
                 interface: "org.freedesktop.DBus",
                 method: "GetConnectionUnixProcessID",
-                args: ["org.freedesktop.DBus"] as [any Sendable],
-                signature: "s",
-                replySignature: "u"
-            )
-            
-            if let pid = result.first as? UInt32 {
+                args: "org.freedesktop.DBus"
+            ) { reply in
+                return try reply.parse(as: UInt32.self)
+            }
+
+            if let pid = result {
                 print("The D-Bus daemon's PID is: \(pid)")
             }
         } catch {

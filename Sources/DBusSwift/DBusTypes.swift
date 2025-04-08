@@ -76,7 +76,7 @@ extension Int32 {
 ///
 /// This class provides a Swift-friendly interface for handling D-Bus errors.
 /// It wraps the C DBusError structure and provides methods for checking, setting, and clearing errors.
-public final class DBusError {
+internal struct DBusError: ~Copyable {
     /// The error name, typically in reverse-DNS format (e.g., "org.freedesktop.DBus.Error.ServiceUnknown").
     private var _name: String?
     
@@ -84,12 +84,12 @@ public final class DBusError {
     private var _message: String?
     
     /// The underlying C DBusError structure.
-    internal var _error: CDBus.DBusError
+    private let _error: UnsafeMutablePointer<CDBus.DBusError>
     
     /// Initializes a new D-Bus error.
     public init() {
-        _error = CDBus.DBusError()
-        dbus_error_init(&_error)
+        _error = UnsafeMutablePointer<CDBus.DBusError>.allocate(capacity: 1)
+        dbus_error_init(_error)
     }
     
     /// Initializes a new D-Bus error with the given name and message.
@@ -98,34 +98,30 @@ public final class DBusError {
     ///   - name: The error name, typically in reverse-DNS format.
     ///   - message: The human-readable error message.
     internal init(name: String, message: String) {
-        _error = CDBus.DBusError()
-        dbus_error_init(&_error)
+        _error = UnsafeMutablePointer<CDBus.DBusError>.allocate(capacity: 1)
+        dbus_error_init(_error)
         _name = name
         _message = message
         
-        name.withCString { cName in
-            message.withCString { cMessage in
-                dbus_set_error_const(&_error, cName, cMessage)
-            }
-        }
+        dbus_set_error_const(_error, name, message)
     }
     
     deinit {
-        dbus_error_free(&_error)
+        dbus_error_free(_error)
     }
     
     /// The error name, typically in reverse-DNS format (e.g., "org.freedesktop.DBus.Error.ServiceUnknown").
     public var name: String? {
-        if dbus_error_is_set(&_error) != 0 {
-            return String(cString: _error.name)
+        if dbus_error_is_set(_error) != 0 {
+            return String(cString: _error.pointee.name)
         }
         return _name
     }
     
     /// The human-readable error message.
     public var message: String? {
-        if dbus_error_is_set(&_error) != 0 {
-            return String(cString: _error.message)
+        if dbus_error_is_set(_error) != 0 {
+            return String(cString: _error.pointee.message)
         }
         return _message
     }
@@ -134,7 +130,7 @@ public final class DBusError {
     ///
     /// - Returns: `true` if an error is set, `false` otherwise.
     public var isSet: Bool {
-        return dbus_error_is_set(&_error) != 0
+        return dbus_error_is_set(_error) != 0
     }
     
     /// Clears the error state.
@@ -160,9 +156,9 @@ public final class DBusError {
     ///     print("Error occurred: \(error.name ?? "") - \(error.message ?? "")")
     /// }
     /// ```
-    public func clear() {
-        dbus_error_free(&_error)
-        dbus_error_init(&_error)
+    public mutating func clear() {
+        dbus_error_free(_error)
+        dbus_error_init(_error)
         _name = nil
         _message = nil
     }
@@ -178,13 +174,13 @@ public final class DBusError {
     /// - Parameters:
     ///   - name: The error name, typically in reverse-DNS format.
     ///   - message: The human-readable error message.
-    internal func setError(name: String, message: String) {
+    internal mutating func setError(name: String, message: String) {
         _name = name
         _message = message
         
         name.withCString { cName in
             message.withCString { cMessage in
-                dbus_set_error_const(&_error, cName, cMessage)
+                dbus_set_error_const(_error, cName, cMessage)
             }
         }
     }
@@ -204,8 +200,10 @@ public final class DBusError {
     /// let error = DBusError()
     /// 
     /// // Call a C API function that requires a DBusError pointer
-    /// let connection = dbus_bus_get(DBUS_BUS_SESSION, error.getError())
-    /// 
+    /// let connection = error.withError { dbusError in
+    ///     dbus_bus_get(DBUS_BUS_SESSION, &dbusError)
+    /// }
+    ///
     /// // Check if an error occurred
     /// if error.isSet {
     ///     print("Failed to connect to the session bus: \(error.message ?? "")")
@@ -214,7 +212,7 @@ public final class DBusError {
     /// ```
     ///
     /// - Returns: A pointer to the underlying C DBusError structure.
-    internal func getError() -> UnsafeMutablePointer<CDBus.DBusError> {
-        withUnsafeMutablePointer(to: &_error) { $0 }
+    internal func withError<T, E: Error>(_ perform: (inout CDBus.DBusError) throws(E) -> T) throws(E) -> T {
+        try perform(&_error.pointee)
     }
 }

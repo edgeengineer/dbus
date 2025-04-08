@@ -12,30 +12,20 @@ struct DBusConnectionTests {
     #if canImport(CDBus)
     /// Tests connecting to the session bus.
     @Test("Session Bus Connection")
-    func testSessionBusConnection() throws {
+    func testSessionBusConnection() async throws {
         // Try to connect, but don't fail the test if D-Bus is not available
         do {
             let connection = try DBusConnection(busType: .session)
-            
-            // Check that the connection was successful
-            #expect(connection.getConnection() != nil)
-            
-            // Only try to send a message if we have a valid connection
-            if connection.getConnection() != nil {
+
+            try await confirmation { confirm in
                 let msg = DBusMessage.createMethodCall(
                     destination: "org.freedesktop.DBus",
                     path: "/org/freedesktop/DBus",
                     interface: "org.freedesktop.DBus",
                     method: "GetId"
                 )
-                
-                do {
-                    let reply = try connection.send(message: msg)
-                    #expect(reply != nil)
-                } catch {
-                    print("Note: D-Bus message send failed: \(error)")
-                    // Still pass the test since we were able to connect
-                    #expect(Bool(true))
+                try await connection.send(message: msg) { reply in
+                    confirm()
                 }
             }
         } catch {
@@ -47,30 +37,20 @@ struct DBusConnectionTests {
     
     /// Tests connecting to the system bus.
     @Test("System Bus Connection")
-    func testSystemBusConnection() throws {
+    func testSystemBusConnection() async throws {
         // Try to connect, but don't fail the test if D-Bus is not available
         do {
             let connection = try DBusConnection(busType: .system)
-            
-            // Check that the connection was successful
-            #expect(connection.getConnection() != nil)
-            
-            // Only try to send a message if we have a valid connection
-            if connection.getConnection() != nil {
+
+            try await confirmation { confirm in
                 let msg = DBusMessage.createMethodCall(
                     destination: "org.freedesktop.DBus",
                     path: "/org/freedesktop/DBus",
                     interface: "org.freedesktop.DBus",
                     method: "GetId"
                 )
-                
-                do {
-                    let reply = try connection.send(message: msg)
-                    #expect(reply != nil)
-                } catch {
-                    print("Note: D-Bus message send failed: \(error)")
-                    // Still pass the test since we were able to connect
-                    #expect(Bool(true))
+                try await connection.send(message: msg) { reply in
+                    confirm()
                 }
             }
         } catch {
@@ -82,39 +62,27 @@ struct DBusConnectionTests {
     
     /// Tests requesting a name on the bus.
     @Test("Request Name")
-    func testRequestName() throws {
+    func testRequestName() async throws {
         // Try to connect, but don't fail the test if D-Bus is not available
         do {
             let connection = try DBusConnection(busType: .session)
-            
-            // Only proceed if we have a valid connection
-            if connection.getConnection() != nil {
-                do {
-                    // Create a message to request a name
-                    let uniqueName = "org.swift.dbus.test.\(UUID().uuidString.replacing("-", with: ""))"
-                    let msg = DBusMessage.createMethodCall(
-                        destination: "org.freedesktop.DBus",
-                        path: "/org/freedesktop/DBus",
-                        interface: "org.freedesktop.DBus",
-                        method: "RequestName"
-                    )
-                    
-                    // Add arguments: name and flags (0 = no flags)
-                    try msg.appendArgs(signature: "su", args: [uniqueName, UInt32(0)])
-                    
-                    // Send the message
-                    let reply = try connection.send(message: msg)
-                    
-                    // If we get here, the request succeeded
-                    #expect(reply != nil)
-                } catch {
-                    print("Note: Failed to request name: \(error)")
-                    // Still pass the test since we were able to connect
-                    #expect(Bool(true))
+            // Send the message
+            try await confirmation { confirm in
+                // Create a message to request a name
+                let uniqueName = "org.swift.dbus.test.uuid-\(UUID().uuidString.replacing("-", with: ""))"
+                var msg = DBusMessage.createMethodCall(
+                    destination: "org.freedesktop.DBus",
+                    path: "/org/freedesktop/DBus",
+                    interface: "org.freedesktop.DBus",
+                    method: "RequestName"
+                )
+
+                // Add arguments: name and flags (0 = no flags)
+                try msg.appendArgs(signature: "su", args: uniqueName, UInt32(0))
+
+                try await connection.send(message: msg) { reply in
+                    confirm()
                 }
-            } else {
-                print("Note: Connection established but invalid")
-                #expect(Bool(true))
             }
         } catch {
             print("Note: D-Bus connection not available for name request test: \(error)")
@@ -125,51 +93,37 @@ struct DBusConnectionTests {
     
     /// Tests sending a message and waiting for a reply.
     @Test("Send With Reply")
-    func testSendWithReply() throws {
+    func testSendWithReply() async throws {
         // Try to connect, but don't fail the test if D-Bus is not available
         do {
             let connection = try DBusConnection(busType: .session)
-            
-            // Only proceed if we have a valid connection
-            if connection.getConnection() != nil {
-                let msg = DBusMessage.createMethodCall(
-                    destination: "org.freedesktop.DBus",
-                    path: "/org/freedesktop/DBus",
-                    interface: "org.freedesktop.DBus",
-                    method: "ListNames"
-                )
-                
-                do {
-                    // Send the message and wait for a reply
-                    let reply = try connection.send(message: msg)
-                    
-                    // Check that we got a reply
-                    #expect(reply != nil)
-                    
-                    // Only try to parse the reply if it's not nil
-                    if let reply = reply {
+
+            do {
+                try await confirmation { confirm in
+                    let msg = DBusMessage.createMethodCall(
+                        destination: "org.freedesktop.DBus",
+                        path: "/org/freedesktop/DBus",
+                        interface: "org.freedesktop.DBus",
+                        method: "ListNames"
+                    )
+
+                    try await connection.send(message: msg) { reply in
+                        confirm()
                         do {
                             // Check that the reply contains an array of strings
-                            let args = try reply.getArgs(signature: "as")
-                            #expect(args.count == 1)
-                            
+                            let names = try reply.parse(as: [String].self)
                             // Check that the array contains at least one string
-                            if let names = args[0] as? [String] {
-                                #expect(!names.isEmpty)
-                            }
+                            #expect(!names.isEmpty)
                         } catch {
                             print("Note: Failed to parse reply: \(error)")
                             // Still pass the test since we got a reply
                             #expect(Bool(true))
                         }
                     }
-                } catch {
-                    print("Note: Failed to send message: \(error)")
-                    // Still pass the test since we were able to connect
-                    #expect(Bool(true))
                 }
-            } else {
-                print("Note: Connection established but invalid")
+            } catch {
+                print("Note: Failed to send message: \(error)")
+                // Still pass the test since we were able to connect
                 #expect(Bool(true))
             }
         } catch {
@@ -181,27 +135,18 @@ struct DBusConnectionTests {
     
     /// Tests another direct connection to the session bus.
     @Test("Direct Connection")
-    func testDirectConnection() throws {
+    func testDirectConnection() async throws {
         // Try to connect, but don't fail the test if D-Bus is not available
         do {
             let connection = try DBusConnection(busType: .session)
-            
-            // Check that the connection was successful
-            #expect(connection.getConnection() != nil)
-            
-            // Only proceed if we have a valid connection
-            if connection.getConnection() != nil {
-                do {
-                    // Test adding and removing match rules
-                    try connection.addMatch(rule: "type='signal'")
-                    try connection.removeMatch(rule: "type='signal'")
-                } catch {
-                    print("Note: Failed to add/remove match rule: \(error)")
-                    // Still pass the test since we were able to connect
-                    #expect(Bool(true))
-                }
-            } else {
-                print("Note: Connection established but invalid")
+
+            do {
+                // Test adding and removing match rules
+                try await connection.addMatch(rule: "type='signal'")
+                try await connection.removeMatch(rule: "type='signal'")
+            } catch {
+                print("Note: Failed to add/remove match rule: \(error)")
+                // Still pass the test since we were able to connect
                 #expect(Bool(true))
             }
         } catch {
@@ -217,22 +162,17 @@ struct DBusConnectionTests {
         // Try to connect, but don't fail the test if D-Bus is not available
         do {
             let dbus = try DBusAsync(busType: .session)
-            
-            do {
-                // Call a method
-                let result = try await dbus.call(
+
+            // Call a method
+            try await confirmation { confirm in
+                try await dbus.call(
                     destination: "org.freedesktop.DBus",
                     path: "/org/freedesktop/DBus",
                     interface: "org.freedesktop.DBus",
                     method: "GetId"
-                )
-                
-                // Check that we got a result
-                #expect(!result.isEmpty)
-            } catch {
-                print("Note: Failed to call async method: \(error)")
-                // Still pass the test since we were able to create the async connection
-                #expect(Bool(true))
+                ) { reply in
+                    confirm()
+                }
             }
         } catch {
             print("Note: Skipping async D-Bus test: \(error)")

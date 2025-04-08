@@ -8,46 +8,59 @@ struct DBusErrorTests {
     /// Tests the basic functionality of the DBusError class.
     @Test("DBusError Basics")
     func testDBusErrorBasics() throws {
-        let error = DBusError()
+        var error = DBusError()
         
+        var isSet = error.isSet
+        var name = error.name
+        var message = error.message
         // Initially, the error should not be set
-        #expect(!error.isSet)
-        #expect(error.name == nil)
-        #expect(error.message == nil)
+        #expect(!isSet)
+        #expect(name == nil)
+        #expect(message == nil)
         
         // Set the error using internal method
         error.setError(name: "org.example.Error.Test", message: "Test error message")
         
         // Check that the error is now set
-        #expect(error.isSet)
-        #expect(error.name == "org.example.Error.Test")
-        #expect(error.message == "Test error message")
+        isSet = error.isSet
+        name = error.name
+        message = error.message
+        #expect(isSet)
+        #expect(name == "org.example.Error.Test")
+        #expect(message == "Test error message")
         
         // Clear the error
         error.clear()
         
         // Check that the error is cleared
-        #expect(!error.isSet)
-        #expect(error.name == nil)
-        #expect(error.message == nil)
+        isSet = error.isSet
+        name = error.name
+        message = error.message
+        #expect(!isSet)
+        #expect(name == nil)
+        #expect(message == nil)
     }
     
     /// Tests the clear method of the DBusError class.
     @Test("DBusError Clear")
     func testDBusErrorClear() throws {
-        let error = DBusError()
+        var error = DBusError()
         
         // Set the error
         error.setError(name: "org.example.Error.Test", message: "Test error message")
-        #expect(error.isSet)
+        var isSet = error.isSet
+        #expect(isSet)
         
         // Clear the error
         error.clear()
         
         // Check that the error is cleared
-        #expect(!error.isSet)
-        #expect(error.name == nil)
-        #expect(error.message == nil)
+        isSet = error.isSet
+        let name = error.name
+        let message = error.message
+        #expect(!isSet)
+        #expect(name == nil)
+        #expect(message == nil)
     }
     #endif
 }
