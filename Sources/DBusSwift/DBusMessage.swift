@@ -1,8 +1,11 @@
 import CDBus
-#if os(Linux)
-import Glibc // Import Glibc for strdup, free, etc. on Linux
-#elseif os(macOS)
-import Darwin // On macOS, these are in Darwin
+ // Imports for strdup, free, etc. on Linux
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#elseif canImport(Darwin)
+import Darwin
 #endif
 #if canImport(FoundationEssentials)
 import FoundationEssentials
