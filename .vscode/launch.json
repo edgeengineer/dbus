@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:dbus}",
+            "name": "Debug ExampleApp",
+            "program": "${workspaceFolder:dbus}/.build/debug/ExampleApp",
+            "preLaunchTask": "swift: Build Debug ExampleApp"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:dbus}",
+            "name": "Release ExampleApp",
+            "program": "${workspaceFolder:dbus}/.build/release/ExampleApp",
+            "preLaunchTask": "swift: Build Release ExampleApp"
+        }
+    ]
+}
