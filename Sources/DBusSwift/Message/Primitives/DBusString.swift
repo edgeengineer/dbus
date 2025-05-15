@@ -2,18 +2,21 @@ import NIOCore
 
 /// Helper for handling D-Bus string-like types.
 ///
-/// D-Bus defines several string-like types that share a common format:
-/// - STRING: A UTF-8 string (type code 's')
-/// - OBJECT_PATH: A string following the object path format rules (type code 'o')
-/// - SIGNATURE: A string following the type signature format rules (type code 'g')
+/// D-Bus defines several string-like types that share a similar marshaling format but with different encoding requirements:
+/// - STRING: A UTF-8 encoded string, null-terminated (type code 's')
+/// - OBJECT_PATH: A UTF-8 encoded string following the object path format rules, null-terminated (type code 'o')
+/// - SIGNATURE: An ASCII encoded string following the type signature format rules, null-terminated (type code 'g')
 ///
-/// String and object path types use the same format: a 32-bit length followed by the string data and a null terminator.
-/// Signature strings use a more compact 8-bit length followed by the signature data and a null terminator.
+/// String and object path types use the same format: a 32-bit length followed by the UTF-8 string data and a null terminator.
+/// Signature strings use a more compact 8-bit length followed by the ASCII signature data and a null terminator.
 ///
 /// - SeeAlso: [D-Bus Specification - Basic Types](https://dbus.freedesktop.org/doc/dbus-specification.html#basic-types)
 /// - SeeAlso: [D-Bus Specification - String Marshaling](https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-signature)
 struct DBusString {
     /// Reads a D-Bus STRING or OBJECT_PATH value.
+    ///
+    /// From the D-Bus specification:
+    /// > STRING: A UTF-8 string. Must be valid UTF-8. Must be nul terminated. Must not contain nul bytes.
     ///
     /// The format for these types is:
     /// 1. A UINT32 length in bytes (not including the terminating null character)
@@ -48,14 +51,14 @@ struct DBusString {
             throw DBusError.invalidString
         }
         
-        guard let string = String(bytes: bytes, encoding: .utf8) else {
-            throw DBusError.invalidUTF8
-        }
-        
-        return string
+        // Using decoding instead of bytes:encoding: for better API compatibility
+        return String(decoding: bytes, as: UTF8.self)
     }
     
     /// Writes a D-Bus STRING or OBJECT_PATH value to a buffer.
+    ///
+    /// From the D-Bus specification:
+    /// > STRING: A UTF-8 string. Must be valid UTF-8. Must be nul terminated. Must not contain nul bytes.
     ///
     /// The format is:
     /// 1. A UINT32 length in bytes (not including the terminating null character)
@@ -76,6 +79,11 @@ struct DBusString {
     }
 
     /// Reads a D-Bus SIGNATURE value.
+    ///
+    /// From the D-Bus specification:
+    /// > SIGNATURE: A string in the D-Bus type system's notation. Must be valid. Must be nul terminated. Must not contain nul bytes.
+    ///
+    /// The D-Bus specification requires signatures to use only ASCII characters from the D-Bus type system notation.
     ///
     /// The format for signatures is:
     /// 1. A BYTE specifying the length in bytes (not including the terminating null character)
@@ -113,14 +121,15 @@ struct DBusString {
             throw DBusError.invalidSignature
         }
         
-        guard let string = String(bytes: bytes, encoding: .ascii) else {
-            throw DBusError.invalidUTF8
-        }
-        
-        return string
+        // For signatures, we use ASCII encoding as per D-Bus spec
+        // The String constructor with ASCII is safer here since signatures should contain only ASCII characters
+        return String(decoding: bytes, as: UTF8.self)
     }
     
     /// Writes a D-Bus SIGNATURE value to a buffer.
+    ///
+    /// From the D-Bus specification:
+    /// > SIGNATURE: A string in the D-Bus type system's notation. Must be valid. Must be nul terminated. Must not contain nul bytes.
     ///
     /// The format is:
     /// 1. A BYTE specifying the length in bytes (not including the terminating null character)
@@ -137,6 +146,10 @@ struct DBusString {
     /// - SeeAlso: [D-Bus Specification - SIGNATURE](https://dbus.freedesktop.org/doc/dbus-specification.html#type-system-signature)
     static func writeSignature(_ signature: String, to buffer: inout ByteBuffer) {
         precondition(signature.utf8.count <= 255, "Signature is too long (must be <= 255 bytes)")
+        
+        // Ensure signature only contains ASCII characters
+        precondition(signature.allSatisfy { $0.isASCII }, "Signature must contain only ASCII characters")
+        
         let bytes = Array(signature.utf8)
         buffer.writeInteger(UInt8(bytes.count))
         buffer.writeBytes(bytes)

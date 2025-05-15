@@ -58,15 +58,16 @@ public final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked S
 
                     do {
                         let handler = try context.pipeline.syncOperations.handler(type: ByteToMessageHandler<LineBasedFrameDecoder>.self)
-                        context.pipeline.syncOperations.removeHandler(handler).whenComplete { _ in
-                            for buffer in self.writeBuffer {
-                                context.writeAndFlush(self.wrapOutboundOut(buffer), promise: nil)
-                            }
-                            self.writeBuffer.removeAll(keepingCapacity: true)
-                            self.state = .authenticated
-                            context.fireChannelActive()
-                            context.fireChannelWritabilityChanged()
+                        _ = context.pipeline.syncOperations.removeHandler(handler)
+                        
+                        // Directly process buffers after handler removal
+                        for buffer in self.writeBuffer {
+                            context.writeAndFlush(self.wrapOutboundOut(buffer), promise: nil)
                         }
+                        self.writeBuffer.removeAll(keepingCapacity: true)
+                        self.state = .authenticated
+                        context.fireChannelActive()
+                        context.fireChannelWritabilityChanged()
                     } catch {
                         context.fireErrorCaught(error)
                     }
@@ -120,7 +121,10 @@ public final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked S
         case .anonymous:
             auth = "AUTH ANONYMOUS\r\n"
         case .external(let userID):
-            let hex = userID.utf8.map { String(format: "%02x", $0) }.joined()
+            let hex = userID.utf8.map { byte in
+                let hexString = String(byte, radix: 16)
+                return hexString.count == 1 ? "0\(hexString)" : hexString
+            }.joined()
             auth = "AUTH EXTERNAL \(hex)\r\n"
         }
         buf.writeString(auth)

@@ -49,7 +49,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/apache-edge/dbus.git", from: "0.0.1")
+    .package(url: "https://github.com/edgeengineer/dbus.git", from: "0.0.1")
 ]
 ```
 
