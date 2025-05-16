@@ -3,21 +3,37 @@ import NIO
 import NIOCore
 import NIOExtras
 
+/// Authentication types supported for DBus connections
+/// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms
 public enum AuthType: Sendable {
+  /// Anonymous authentication (no credentials)
+  /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-anonymous
   case anonymous
+  
+  /// External authentication using provided user ID
+  /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-external
   case external(userID: String)
 }
 
+/// Handles the DBus authentication protocol
+/// This channel handler implements the client-side of the DBus authentication protocol
+/// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-protocol
 public final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked Sendable {
   public typealias InboundIn = ByteBuffer
   public typealias InboundOut = ByteBuffer
   public typealias OutboundIn = ByteBuffer
   public typealias OutboundOut = ByteBuffer
 
+  /// States of the DBus authentication protocol
+  /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-protocol
   public enum State {
+    /// Waiting for NUL byte reply from server (initial state)
     case waitingForNullReply
+    /// Authentication sent, waiting for OK response
     case waitingForOK
+    /// Successfully authenticated, normal message passing can begin
     case authenticated
+    /// Authentication failed
     case failed
   }
 
@@ -111,6 +127,9 @@ public final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked S
     }
   }
 
+  /// Initiates the DBus authentication process when the channel becomes active
+  /// Sends the initial NUL byte followed by the AUTH command
+  /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-command
   public func channelActive(context: ChannelHandlerContext) {
     // Send initial NUL byte and AUTH command
     var buf = context.channel.allocator.buffer(capacity: 64)
@@ -134,12 +153,19 @@ public final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked S
   }
 }
 
+/// Errors that can occur during the DBus authentication process
+/// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-protocol
 public enum DBusAuthenticationError: Error {
+  /// The initial NUL byte was invalid or missing
   case invalidInitialNull
+  /// Received an invalid AUTH command response
   case invalidAuthCommand
+  /// The BEGIN command failed
   case invalidBegin
 }
 
+/// Events that can be triggered during the DBus authentication process
 public enum DBusAuthenticationEvent {
+  /// Authentication was successful
   case authenticated
 }
