@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-  name: "DBusSwift",
+  name: "swift-dbus",
   products: [
     .library(
       name: "DBusSwift",
