@@ -9,7 +9,7 @@ public enum AuthType: Sendable {
   /// Anonymous authentication (no credentials)
   /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-anonymous
   case anonymous
-  
+
   /// External authentication using provided user ID
   /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-external
   case external(userID: String)
