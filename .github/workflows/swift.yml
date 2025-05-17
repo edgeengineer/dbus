@@ -66,6 +66,13 @@ jobs:
       run: |
         llvm-cov export -format="lcov" .build/debug/*.xctest -instr-profile .build/debug/codecov/default.profdata > coverage.lcov
     
+    # Install dependencies for Codecov
+    - name: Install dependencies
+      shell: bash
+      run: |
+        apt-get update
+        apt-get install -y curl gnupg
+    
     # Upload coverage to Codecov
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
