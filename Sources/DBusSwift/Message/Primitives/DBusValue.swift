@@ -76,7 +76,8 @@ public indirect enum DBusValue: Hashable, Sendable {
     switch c {
     case "y": return 1  // BYTE
     case "n", "q": return 2  // INT16, UINT16
-    case "b", "i", "u", "s", "o", "g", "h": return 4  // BOOLEAN, INT32, UINT32, STRING, OBJECT_PATH, SIGNATURE, UNIX_FD
+    // BOOLEAN, INT32, UINT32, STRING, OBJECT_PATH, SIGNATURE, UNIX_FD
+    case "b", "i", "u", "s", "o", "g", "h": return 4
     case "x", "t", "d": return 8  // INT64, UINT64, DOUBLE
     case "a": return 4  // ARRAY
     case "(": return 8  // STRUCT
