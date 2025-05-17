@@ -11,72 +11,72 @@ on:
 # Jobs to run
 jobs:
   build-and-test:
-    name: Swift ${{ matrix.swift }} on Linux
+    name: Swift ${{ matrix.swift }} on Linux (${{ matrix.artifact-name }})
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04]
-        swift: ["6.0.0"] # Use specific release version
-
+        include:
+          - artifact-name: dbus-swift-linux-static-aarch64
+            os: ubuntu-22.04-arm
+            swift: ["6.1.0"]
+            container: swift:6.1.0
+            swift-sdk: aarch64-swift-linux-musl
+            swift-sdk-url: https://download.swift.org/swift-6.1-release/static-sdk/swift-6.1-RELEASE/swift-6.1-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz
+            swift-sdk-checksum: 111c6f7d280a651208b8c74c0521dd99365d785c1976a6e23162f55f65379ac6
+          - artifact-name: dbus-swift-linux-static-x86_64
+            os: ubuntu-22.04-arm
+            swift: ["6.1.0"]
+            container: swift:6.1.0
+            swift-sdk: x86_64-swift-linux-musl
+            swift-sdk-url: https://download.swift.org/swift-6.1-release/static-sdk/swift-6.1-RELEASE/swift-6.1-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz
+            swift-sdk-checksum: 111c6f7d280a651208b8c74c0521dd99365d785c1976a6e23162f55f65379ac6
     steps:
     # 1. Check out repository code
     - name: Check out repository code
       uses: actions/checkout@v4
+    - name: Install Swift SDK
+      if: ${{ matrix.swift-sdk-url != '' }}
+      run: |
+        swift sdk install ${{ matrix.swift-sdk-url }} --checksum ${{ matrix.swift-sdk-checksum }}
 
     # === Linux Setup (Ubuntu 22.04) ===
-    # 2. Ensure prerequisites are installed
-    - name: Ensure Prerequisites
+    - name: Build
+      shell: bash
       run: |
-        sudo apt-get update && sudo apt-get install -y \
-          gpg dirmngr curl wget \
-          libatomic1 libncurses5
-        mkdir -p ~/.gnupg
-        chmod 700 ~/.gnupg
-        echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
-        echo "Prerequisites installed, GPG configured."
+        args=(
+          --configuration release  
+        )
 
-    # 3. Fetch and import Swift keys
-    - name: Fetch and Import Swift Keys
-      run: |
-        echo "Downloading and importing Swift keys..."
-        curl -fsSL https://swift.org/keys/all-keys.asc | gpg --import -
-        echo "Import process completed."
-        if gpg --list-keys 'Swift 6.x Release Signing Key'; then
-          echo "Swift 6.x Release Signing key successfully imported/found."
-        else
-          # Try alternative key format
-          curl -fsSL https://swift.org/keys/all-keys.asc.gpg | gpg --import -
-          if gpg --list-keys 'Swift 6.x Release Signing Key'; then
-            echo "Swift 6.x Release Signing key successfully imported/found (alternative format)."
-          else
-            echo "ERROR: Swift 6.x Release Signing Key not found after import attempts!" >&2
-            exit 1
-          fi
+        if [ -n "${{ matrix.swift-sdk }}" ]; then
+          args+=(--swift-sdk "${{ matrix.swift-sdk }}")
         fi
 
-    # 4. Set up Swift using action
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: ${{ matrix.swift }} # "6.0.0"
-
-    # 5. Verify Swift installation
-    - name: Verify Swift installation
-      run: swift --version
-
-    # 6. Install D-Bus dependencies
-    - name: Install D-Bus dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libdbus-1-dev dbus
-        eval $(dbus-launch --auto-syntax)
-        echo "D-Bus dependencies installed and session launched."
-
-    # 7. Build the Swift package
-    - name: Build Package
-      run: swift build -c release -v
-
+        swift build "${args[@]}"
     # 8. Run tests
     - name: Run Tests
-      run: swift test -v
+      shell: bash
+      run: |
+        swift test --enable-code-coverage "${args[@]}"
+        
+    # Generate code coverage report
+    - name: Generate Code Coverage Report
+      shell: bash
+      run: |
+        llvm-cov export -format="lcov" .build/debug/*.xctest -instr-profile .build/debug/codecov/default.profdata > coverage.lcov
+    
+    # Install dependencies for Codecov
+    - name: Install dependencies
+      shell: bash
+      run: |
+        apt-get update
+        apt-get install -y curl gnupg
+    
+    # Upload coverage to Codecov
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        directory: ./
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false
