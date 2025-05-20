@@ -84,7 +84,7 @@ struct DBusString {
     }
 
     // Check that the bytes are valid UTF-8
-    guard let result = String(bytes: bytes, encoding: .utf8) else {
+    guard let result = String(validating: bytes, as: UTF8.self) else {
       buffer.moveReaderIndex(to: originalPosition)
       throw DBusError.invalidUTF8
     }
