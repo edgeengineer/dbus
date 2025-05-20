@@ -252,47 +252,47 @@ public indirect enum DBusValue: Hashable, Sendable {
     guard !signature.isEmpty else {
       throw DBusError.invalidSignature
     }
-    
+
     let firstChar = signature.first!
-    
+
     // For simple types, just consume one character
     if "ybnqiuxtdsogvh".contains(firstChar) {
       signature.removeFirst()
       return String(firstChar)
     }
-    
+
     // For variant type
     if firstChar == "v" {
       signature.removeFirst()
       return "v"
     }
-    
+
     // For array types
     if firstChar == "a" {
       signature.removeFirst()
-      
+
       // Handle dictionary types specially
       if !signature.isEmpty && signature.first == "{" {
         var depth = 0
         var dictSig = "{"
-        signature.removeFirst() // Remove the '{'
+        signature.removeFirst()  // Remove the '{'
         depth += 1
-        
+
         // Collect all characters until the matching '}'
         while !signature.isEmpty && depth > 0 {
           let c = signature.removeFirst()
           dictSig.append(c)
-          
+
           if c == "{" {
             depth += 1
           } else if c == "}" {
             depth -= 1
           }
         }
-        
+
         return "a" + dictSig
       }
-      
+
       // For regular arrays, recursively get the element type
       if !signature.isEmpty {
         let elementType = try parseNextTypeSignature(from: &signature)
@@ -301,33 +301,33 @@ public indirect enum DBusValue: Hashable, Sendable {
         throw DBusError.invalidSignature
       }
     }
-    
+
     // For struct types
     if firstChar == "(" {
       var depth = 0
       var structSig = "("
-      signature.removeFirst() // Remove the '('
+      signature.removeFirst()  // Remove the '('
       depth += 1
-      
+
       // Collect all characters until the matching ')'
       while !signature.isEmpty && depth > 0 {
         let c = signature.removeFirst()
         structSig.append(c)
-        
+
         if c == "(" {
           depth += 1
         } else if c == ")" {
           depth -= 1
         }
       }
-      
+
       return structSig
     }
-    
+
     // Shouldn't get here with valid signatures
     throw DBusError.invalidSignature
   }
-  
+
   private static func typeToString(_ type: DBusType) -> String {
     switch type {
     case .byte: return "y"

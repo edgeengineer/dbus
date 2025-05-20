@@ -39,14 +39,14 @@ struct DBusString {
 
     // Keep track of original buffer position for error reporting
     let originalPosition = buffer.readerIndex
-    
+
     let length: UInt32
     do {
       length = try buffer.requireInteger(endianness: byteOrder)
     } catch {
       throw DBusError.invalidString
     }
-    
+
     // Ensure the length is reasonable compared to buffer size
     guard length <= 65535, length <= UInt32(buffer.readableBytes) else {
       // Reset buffer position on error
@@ -82,7 +82,7 @@ struct DBusString {
       buffer.moveReaderIndex(to: originalPosition)
       throw DBusError.invalidString
     }
-    
+
     // Check that the bytes are valid UTF-8
     guard let result = String(bytes: bytes, encoding: .utf8) else {
       buffer.moveReaderIndex(to: originalPosition)

@@ -409,45 +409,45 @@ struct DBusValueTests {
   }
 
   // MARK: - NetworkManager Connection Tests
-  
+
   @Test func networkManagerConnectionDictionary() throws {
     // Try with a very simplified test case to isolate the invalidString error
-    
+
     // Create a test SSID with spaces
     let ssid = "Test WiFi With Spaces"
     let ssidBytes = Array(ssid.utf8)
-    
+
     // Create just a simple dictionary with the SSID bytes array
     let ssidArray: DBusValue = .array(ssidBytes.map { DBusValue.byte($0) })
-    
+
     // First test just the array part - this step is expected to work
     var buffer1 = ByteBuffer()
     ssidArray.write(to: &buffer1, byteOrder: .little)
-    
+
     var readBuffer1 = buffer1
     // Should succeed
     _ = try DBusValue.parse(
-      from: &readBuffer1, 
+      from: &readBuffer1,
       typeSignature: ssidArray.dbusTypeSignature,
       byteOrder: .little
     )
-    
+
     // Next step - test with a dictionary containing the array
     let wifiDict: DBusValue = .dictionary([
       .string("ssid"): ssidArray
     ])
-    
+
     var buffer2 = ByteBuffer()
     wifiDict.write(to: &buffer2, byteOrder: .little)
-    
+
     var readBuffer2 = buffer2
     // Should succeed
     _ = try DBusValue.parse(
-      from: &readBuffer2, 
+      from: &readBuffer2,
       typeSignature: wifiDict.dbusTypeSignature,
       byteOrder: .little
     )
-    
+
     // Now test with a DBusMessage
     let message = DBusMessage.createMethodCall(
       destination: "org.freedesktop.NetworkManager",
@@ -457,31 +457,32 @@ struct DBusValueTests {
       serial: 1,
       body: [wifiDict]
     )
-    
+
     var buffer3 = ByteBuffer()
     message.write(to: &buffer3)
-    
+
     let decodedMessage = try DBusMessage(from: &buffer3)
-    
+
     // Verify the message was decoded correctly
     #expect(decodedMessage.body.count == 1, "Should have 1 body entry")
-    
+
     // Add debug output to see the structure of the decoded message
     print("Decoded message body type: \(type(of: decodedMessage.body[0]))")
     print("Decoded message body: \(decodedMessage.body[0])")
-    
+
     // Check for different possible formats the SSID might be decoded as
     func findSSID(in value: DBusValue) -> String? {
       switch value {
       case .dictionary(let entries):
         // Direct dictionary entry
-        if let ssidEntry = entries.first(where: { 
-          if case .string(let key) = $0.key, key == "ssid" { 
-            return true 
-          } 
-          return false 
+        if let ssidEntry = entries.first(where: {
+          if case .string(let key) = $0.key, key == "ssid" {
+            return true
+          }
+          return false
         }),
-        case .array(let byteValues) = ssidEntry.value {
+          case .array(let byteValues) = ssidEntry.value
+        {
           let bytes = byteValues.compactMap { value -> UInt8? in
             if case .byte(let byte) = value {
               return byte
@@ -490,14 +491,14 @@ struct DBusValueTests {
           }
           return String(bytes: bytes, encoding: .utf8)
         }
-        
+
         // Try searching recursively through all entries
         for (_, entryValue) in entries {
           if let foundSsid = findSSID(in: entryValue) {
             return foundSsid
           }
         }
-        
+
       case .array(let values):
         // Search through array elements
         for value in values {
@@ -505,11 +506,11 @@ struct DBusValueTests {
             return foundSsid
           }
         }
-        
+
       case .variant(let variant):
         // Look inside variants
         return findSSID(in: variant.value)
-        
+
       case .structure(let values):
         // Search through structure elements
         for value in values {
@@ -517,14 +518,14 @@ struct DBusValueTests {
             return foundSsid
           }
         }
-        
+
       default:
         return nil
       }
-      
+
       return nil
     }
-    
+
     // Try finding the SSID with our recursive function
     if let decodedSsid = findSSID(in: decodedMessage.body[0]) {
       #expect(decodedSsid == ssid, "SSID should match original")
@@ -537,102 +538,108 @@ struct DBusValueTests {
 
   @Test func networkManagerAddAndActivateConnectionSignature() throws {
     // Test specifically for the a{sa{sv}}oo signature handling
-    
+
     // Create a minimal but valid representation of the AddAndActivateConnection parameters
     let connSettings: DBusValue = .dictionary([
-      .string("connection"): .variant(DBusVariant(.dictionary([
-        .string("id"): .string("Test Network"),
-        .string("type"): .string("802-11-wireless")
-      ])))
+      .string("connection"): .variant(
+        DBusVariant(
+          .dictionary([
+            .string("id"): .string("Test Network"),
+            .string("type"): .string("802-11-wireless"),
+          ])))
     ])
-    
+
     // Expected signature for AddAndActivateConnection method
     let expectedSignature = "a{sa{sv}}oo"
-    
+
     // Create a message with the correct signature format
     let message = DBusMessage.createMethodCall(
       destination: "org.freedesktop.NetworkManager",
-      path: "/org/freedesktop/NetworkManager", 
+      path: "/org/freedesktop/NetworkManager",
       interface: "org.freedesktop.NetworkManager",
       method: "AddAndActivateConnection",
       serial: 1,
       body: [
         connSettings,
         .objectPath("/device/path"),
-        .objectPath("/ap/path")
+        .objectPath("/ap/path"),
       ]
     )
-    
+
     var buffer = ByteBuffer()
     message.write(to: &buffer)
-    
+
     // Check the signature of the message body
     for field in message.headerFields {
-      if case .signature = field.code, 
-         case .signature(let signature) = field.variant.value {
+      if case .signature = field.code,
+        case .signature(let signature) = field.variant.value
+      {
         // The signature might include each parameter's individual signature
         // For the AddAndActivateConnection method with our parameters
         // Check that the signature correctly represents our complex structure
         #expect(signature.contains("a{s"), "Signature should contain dictionary with string keys")
         #expect(signature.contains("o"), "Signature should contain object paths")
         // Verify the signature format matches what we expect
-        #expect(signature.hasSuffix("oo"), "Signature should end with two object paths as in \(expectedSignature)")
+        #expect(
+          signature.hasSuffix("oo"),
+          "Signature should end with two object paths as in \(expectedSignature)")
         break
       }
     }
-    
+
     // Decode the message and ensure it's correctly reconstructed
     let decodedMessage = try DBusMessage(from: &buffer)
     #expect(decodedMessage.body.count == 3, "Should have 3 parameters")
-    
+
     // Just check that we have a dictionary in the first parameter that contains the expected connection info
     // Instead of checking for exact equality, which can fail due to implementation details
     if case .array(let dictionaries) = decodedMessage.body[0],
-       let connectionDict = dictionaries.first,
-       case .dictionary(let entries) = connectionDict,
-       let connectionEntry = entries.first(where: { 
-         if case .string(let key) = $0.key, key == "connection" {
-           return true
-         }
-         return false
-       }),
-       case .variant(let variant) = connectionEntry.value {
-         
-         var foundId = false
-         var foundType = false
-         
-         // Extract and check all the values, regardless of exact structure
-         func checkForValues(in value: DBusValue) {
-           switch value {
-           case .dictionary(let dict):
-             for (k, v) in dict {
-               if case .string(let key) = k {
-                 if key == "id", case .string(let val) = v, val == "Test Network" {
-                   foundId = true
-                 } else if key == "type", case .string(let val) = v, val == "802-11-wireless" {
-                   foundType = true
-                 }
-               }
-             }
-           case .array(let arr):
-             for item in arr {
-               checkForValues(in: item)
-             }
-           case .variant(let v):
-             checkForValues(in: v.value)
-           default:
-             break
-           }
-         }
-         
-         checkForValues(in: variant.value)
-         
-         #expect(foundId, "Should find id = 'Test Network' in connection settings")
-         #expect(foundType, "Should find type = '802-11-wireless' in connection settings")
+      let connectionDict = dictionaries.first,
+      case .dictionary(let entries) = connectionDict,
+      let connectionEntry = entries.first(where: {
+        if case .string(let key) = $0.key, key == "connection" {
+          return true
+        }
+        return false
+      }),
+      case .variant(let variant) = connectionEntry.value
+    {
+
+      var foundId = false
+      var foundType = false
+
+      // Extract and check all the values, regardless of exact structure
+      func checkForValues(in value: DBusValue) {
+        switch value {
+        case .dictionary(let dict):
+          for (k, v) in dict {
+            if case .string(let key) = k {
+              if key == "id", case .string(let val) = v, val == "Test Network" {
+                foundId = true
+              } else if key == "type", case .string(let val) = v, val == "802-11-wireless" {
+                foundType = true
+              }
+            }
+          }
+        case .array(let arr):
+          for item in arr {
+            checkForValues(in: item)
+          }
+        case .variant(let v):
+          checkForValues(in: v.value)
+        default:
+          break
+        }
+      }
+
+      checkForValues(in: variant.value)
+
+      #expect(foundId, "Should find id = 'Test Network' in connection settings")
+      #expect(foundType, "Should find type = '802-11-wireless' in connection settings")
     } else {
       #expect(Bool(false), "Should have valid connection dictionary with settings")
     }
-    
+
     // Check the object paths
     #expect(decodedMessage.body[1] == .objectPath("/device/path"), "Device path should match")
     #expect(decodedMessage.body[2] == .objectPath("/ap/path"), "AP path should match")

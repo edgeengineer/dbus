@@ -126,17 +126,17 @@ public struct DBusMessage: Sendable {
     guard case .signature(let sig) = signatureField.variant.value else {
       throw DBusError.invalidHeader
     }
-    
+
     if sig.isEmpty {
       return []
     }
-    
+
     var bufferCopy = body
-    
+
     do {
       let signature = try DBusTypeSignature(sig)
       let result = try Self.parseArguments(from: &bufferCopy, from: signature, byteOrder: byteOrder)
-      
+
       body = bufferCopy
       return result
     } catch {
