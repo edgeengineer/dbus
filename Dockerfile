@@ -1,4 +1,4 @@
-FROM swift:6.0
+FROM swift:6.1
 
 # Install D-Bus dependencies
 RUN apt-get update && apt-get install -y \
