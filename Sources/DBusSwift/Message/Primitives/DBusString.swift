@@ -83,8 +83,12 @@ struct DBusString {
       throw DBusError.invalidString
     }
 
-    // Check that the bytes are valid UTF-8
-    guard let result = String(validating: bytes, as: UTF8.self) else {
+    // Create string from UTF-8 bytes (this will always succeed as it doesn't validate UTF-8)
+    let result = String(decoding: bytes, as: UTF8.self)
+    
+    // To maintain the original behavior of rejecting invalid UTF-8, we need to check for invalid sequences
+    // by comparing the decoded bytes back to the original
+    if Array(result.utf8) != bytes {
       buffer.moveReaderIndex(to: originalPosition)
       throw DBusError.invalidUTF8
     }

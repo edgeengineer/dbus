@@ -489,7 +489,8 @@ struct DBusValueTests {
             }
             return nil
           }
-          return String(bytes: bytes, encoding: .utf8)
+          // Return the string as is, but wrap in an optional to match the return type
+          return String(decoding: bytes, as: UTF8.self)
         }
 
         // Try searching recursively through all entries
