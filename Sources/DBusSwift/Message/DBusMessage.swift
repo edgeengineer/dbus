@@ -117,15 +117,31 @@ public struct DBusMessage: Sendable {
     byteOrder: Endianness
   ) throws -> [DBusValue] {
     guard let signatureField = headerFields.first(where: { $0.code == .signature }) else {
+      if body.readableBytes == 0 {
+        return []
+      }
       throw DBusError.invalidHeader
     }
 
     guard case .signature(let sig) = signatureField.variant.value else {
       throw DBusError.invalidHeader
     }
-
-    let signature = try DBusTypeSignature(sig)
-    return try Self.parseArguments(from: &body, from: signature, byteOrder: byteOrder)
+    
+    if sig.isEmpty {
+      return []
+    }
+    
+    var bufferCopy = body
+    
+    do {
+      let signature = try DBusTypeSignature(sig)
+      let result = try Self.parseArguments(from: &bufferCopy, from: signature, byteOrder: byteOrder)
+      
+      body = bufferCopy
+      return result
+    } catch {
+      throw error
+    }
   }
 
   public static func createMethodCall(

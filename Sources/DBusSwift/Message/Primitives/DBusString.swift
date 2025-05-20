@@ -37,22 +37,59 @@ struct DBusString {
       throw DBusError.invalidString
     }
 
-    let length = try buffer.requireInteger(endianness: byteOrder) as UInt32
+    // Keep track of original buffer position for error reporting
+    let originalPosition = buffer.readerIndex
+    
+    let length: UInt32
+    do {
+      length = try buffer.requireInteger(endianness: byteOrder)
+    } catch {
+      throw DBusError.invalidString
+    }
+    
+    // Ensure the length is reasonable compared to buffer size
+    guard length <= 65535, length <= UInt32(buffer.readableBytes) else {
+      // Reset buffer position on error
+      buffer.moveReaderIndex(to: originalPosition)
+      throw DBusError.invalidString
+    }
 
     // Check if we have enough bytes for the string data plus null terminator
     guard buffer.readableBytes >= Int(length) + 1 else {
+      // Reset buffer position on error
+      buffer.moveReaderIndex(to: originalPosition)
       throw DBusError.invalidString
     }
 
-    let bytes = try buffer.requireBytes(length: Int(length))
+    let bytes: [UInt8]
+    do {
+      bytes = try buffer.requireBytes(length: Int(length))
+    } catch {
+      // Reset buffer position on error
+      buffer.moveReaderIndex(to: originalPosition)
+      throw DBusError.invalidString
+    }
 
     // Check for null terminator
     guard let nullTerminator = buffer.readInteger(as: UInt8.self), nullTerminator == 0 else {
+      // Reset buffer position on error
+      buffer.moveReaderIndex(to: originalPosition)
       throw DBusError.invalidString
     }
 
-    // Using decoding instead of bytes:encoding: for better API compatibility
-    return String(decoding: bytes, as: UTF8.self)
+    // Check that the bytes don't contain internal null characters (not allowed in D-Bus strings)
+    guard !bytes.contains(0) else {
+      buffer.moveReaderIndex(to: originalPosition)
+      throw DBusError.invalidString
+    }
+    
+    // Check that the bytes are valid UTF-8
+    guard let result = String(bytes: bytes, encoding: .utf8) else {
+      buffer.moveReaderIndex(to: originalPosition)
+      throw DBusError.invalidUTF8
+    }
+
+    return result
   }
 
   /// Writes a D-Bus STRING or OBJECT_PATH value to a buffer.

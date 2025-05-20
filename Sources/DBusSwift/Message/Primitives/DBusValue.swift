@@ -252,75 +252,105 @@ public indirect enum DBusValue: Hashable, Sendable {
     guard !signature.isEmpty else {
       throw DBusError.invalidSignature
     }
-
-    let firstChar = signature.removeFirst()
-    var result = String(firstChar)
-
-    // Handle container types that need special parsing
-    switch firstChar {
-    case "a":
-      // Array type needs its element type
-      if signature.isEmpty {
+    
+    let firstChar = signature.first!
+    
+    // For simple types, just consume one character
+    if "ybnqiuxtdsogvh".contains(firstChar) {
+      signature.removeFirst()
+      return String(firstChar)
+    }
+    
+    // For variant type
+    if firstChar == "v" {
+      signature.removeFirst()
+      return "v"
+    }
+    
+    // For array types
+    if firstChar == "a" {
+      signature.removeFirst()
+      
+      // Handle dictionary types specially
+      if !signature.isEmpty && signature.first == "{" {
+        var depth = 0
+        var dictSig = "{"
+        signature.removeFirst() // Remove the '{'
+        depth += 1
+        
+        // Collect all characters until the matching '}'
+        while !signature.isEmpty && depth > 0 {
+          let c = signature.removeFirst()
+          dictSig.append(c)
+          
+          if c == "{" {
+            depth += 1
+          } else if c == "}" {
+            depth -= 1
+          }
+        }
+        
+        return "a" + dictSig
+      }
+      
+      // For regular arrays, recursively get the element type
+      if !signature.isEmpty {
+        let elementType = try parseNextTypeSignature(from: &signature)
+        return "a" + elementType
+      } else {
         throw DBusError.invalidSignature
       }
-
-      // If array of dict entries, parse the entire dict entry type
-      if signature.first == "{" {
-        var entryDepth = 0
-        var entryType = ""
-
-        // Parse the complete dict entry type
-        while !signature.isEmpty {
-          let char = signature.removeFirst()
-          entryType.append(char)
-
-          if char == "{" {
-            entryDepth += 1
-          } else if char == "}" {
-            entryDepth -= 1
-            if entryDepth == 0 {
-              break  // Complete dict entry type
-            }
-          }
-        }
-
-        result.append(entryType)
-      } else {
-        // Regular array, parse the element type
-        let elementType = try parseNextTypeSignature(from: &signature)
-        result.append(elementType)
-      }
-
-    case "(", "{":
-      // Struct or dict entry type
-      var depth = 1
-      var innerType = ""
-
-      // Parse until matching closing parenthesis/brace
-      while !signature.isEmpty && depth > 0 {
-        let char = signature.removeFirst()
-        innerType.append(char)
-
-        if char == "(" || char == "{" {
-          depth += 1
-        } else if char == ")" || char == "}" {
-          depth -= 1
-          if depth == 0 && char == ")" {
-            break  // Complete struct type
-          } else if depth == 0 && char == "}" {
-            break  // Complete dict entry type
-          }
-        }
-      }
-
-      result.append(innerType)
-
-    default:
-      // Basic type, already handled by taking the first character
-      break
     }
-
-    return result
+    
+    // For struct types
+    if firstChar == "(" {
+      var depth = 0
+      var structSig = "("
+      signature.removeFirst() // Remove the '('
+      depth += 1
+      
+      // Collect all characters until the matching ')'
+      while !signature.isEmpty && depth > 0 {
+        let c = signature.removeFirst()
+        structSig.append(c)
+        
+        if c == "(" {
+          depth += 1
+        } else if c == ")" {
+          depth -= 1
+        }
+      }
+      
+      return structSig
+    }
+    
+    // Shouldn't get here with valid signatures
+    throw DBusError.invalidSignature
+  }
+  
+  private static func typeToString(_ type: DBusType) -> String {
+    switch type {
+    case .byte: return "y"
+    case .boolean: return "b"
+    case .int16: return "n"
+    case .uint16: return "q"
+    case .int32: return "i"
+    case .uint32: return "u"
+    case .int64: return "x"
+    case .uint64: return "t"
+    case .double: return "d"
+    case .string: return "s"
+    case .objectPath: return "o"
+    case .signature: return "g"
+    case .unixFd: return "h"
+    case .variant: return "v"
+    case .array(let elemType):
+      return "a" + typeToString(elemType)
+    case .structure(let types):
+      return "(" + types.map(typeToString).joined() + ")"
+    case .dictEntry(let key, let value):
+      return "{" + typeToString(key) + typeToString(value) + "}"
+    }
   }
 }
 
