@@ -18,12 +18,12 @@ public struct AuthType: Sendable {
 
   let backing: Backing
 
-    /// Anonymous authentication (no credentials)
-    /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-anonymous
+  /// Anonymous authentication (no credentials)
+  /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-anonymous
   public static let anonymous = AuthType(backing: .anonymous)
 
-    /// External authentication using provided user ID
-    /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-external
+  /// External authentication using provided user ID
+  /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-external
   public static func external(userID: String) -> AuthType {
     AuthType(backing: .external(userID: userID))
   }
@@ -127,8 +127,9 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
     }
   }
 
-  internal func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?)
-  {
+  internal func write(
+    context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?
+  ) {
     if state == .authenticated, writeBuffer.isEmpty {
       context.writeAndFlush(data, promise: promise)
     } else {
