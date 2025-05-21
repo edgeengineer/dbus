@@ -8,13 +8,30 @@ public struct DBusClient: Sendable {
   private let group: EventLoopGroup
   private let asyncChannel: NIOAsyncChannel<DBusMessage, DBusMessage>
 
+  public struct Replies {
+    fileprivate var iterator: NIOAsyncChannelInboundStream<DBusMessage>.AsyncIterator
+
+    public mutating func next() async throws -> DBusMessage? {
+      try await iterator.next()
+    }
+  }
+
+  public struct Send {
+    fileprivate let writer: NIOAsyncChannelOutboundWriter<DBusMessage>
+
+    public func send(_ message: DBusMessage) async throws {
+      try await writer.write(message)
+    }
+
+    public func callAsFunction(_ message: DBusMessage) async throws {
+      try await send(message)
+    }
+  }
+
   public static func withConnection<R: Sendable>(
     to address: SocketAddress,
     auth: AuthType,
-    _ handler: @Sendable @escaping (
-      NIOAsyncChannelInboundStream<DBusMessage>,
-      NIOAsyncChannelOutboundWriter<DBusMessage>
-    ) async throws -> R
+    _ handler: @Sendable @escaping (inout Replies, Send) async throws -> R
   ) async throws -> R {
     let bootstrap = ClientBootstrap(group: MultiThreadedEventLoopGroup.singleton)
       .channelInitializer { channel in
@@ -37,7 +54,11 @@ public struct DBusClient: Sendable {
       }.get()
 
     return try await asyncChannel.executeThenClose { inbound, outbound in
-      try await handler(inbound, outbound)
+      var replies = Replies(
+        iterator: inbound.makeAsyncIterator()
+      )
+      let send = Send(writer: outbound)
+      return try await handler(&replies, send)
     }
   }
 
