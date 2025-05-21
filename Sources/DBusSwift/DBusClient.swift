@@ -41,7 +41,7 @@ public struct DBusClient: Sendable {
     }
   }
 
-  public static func addToPipeline(_ pipeline: ChannelPipeline, auth: AuthType) throws {
+  static func addToPipeline(_ pipeline: ChannelPipeline, auth: AuthType) throws {
     let handlers: [any ChannelHandler] = [
       ByteToMessageHandler(LineBasedFrameDecoder()),
       DBusAuthenticationHandler(auth: auth),
@@ -52,6 +52,6 @@ public struct DBusClient: Sendable {
   }
 }
 
-public enum DBusClientError: Error {
+internal enum DBusClientError: Error {
   case notConnected
 }
