@@ -9,7 +9,7 @@ import NIOExtras
 /// ANONYMOUS and EXTERNAL authentication methods.
 ///
 /// ## Overview
-/// 
+///
 /// Authentication is the first step when establishing a D-Bus connection. The client and server
 /// negotiate which authentication mechanism to use before any D-Bus messages can be exchanged.
 ///
@@ -66,7 +66,7 @@ public struct AuthType: Sendable {
   /// ## Example
   /// ```swift
   /// import Foundation
-  /// 
+  ///
   /// let userID = String(getuid())
   /// let auth = AuthType.external(userID: userID)
   /// ```
@@ -102,10 +102,12 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
   private var state: State = .waitingForNullReply
   private var buffer = ByteBufferAllocator().buffer(capacity: 128)
   private let auth: AuthType
+  private let logger: DBusLogger
   private var writeBuffer = [ByteBuffer]()
 
-  internal init(auth: AuthType) {
+  internal init(auth: AuthType, logger: DBusLogger) {
     self.auth = auth
+    self.logger = logger
   }
 
   internal func channelRead(context: ChannelHandlerContext, data: NIOAny) {
@@ -122,13 +124,20 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
         // Wait for server's NUL byte reply (optional, but some servers send it)
         if let byte = buffer.getInteger(at: buffer.readerIndex, as: UInt8.self), byte == 0 {
           buffer.moveReaderIndex(forwardBy: 1)
+          logger.trace("Received initial NUL byte from server")
         }
 
         state = .waitingForOK
+        logger.debug("Waiting for authentication response from server")
       case .waitingForOK:
         guard var line = buffer.readString(length: buffer.readableBytes) else { return }
+        logger.trace(
+          "Received authentication response: \(line.trimmingCharacters(in: .whitespacesAndNewlines))"
+        )
+
         if line.starts(with: "OK ") {
           line = String(line.dropFirst(3))
+          logger.info("Authentication successful, sending BEGIN command")
 
           let begin = "BEGIN\r\n"
           let out = context.channel.allocator.buffer(string: begin)
@@ -145,18 +154,25 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
             }
             self.writeBuffer.removeAll(keepingCapacity: true)
             self.state = .authenticated
+            logger.info("D-Bus authentication completed successfully")
             context.fireChannelActive()
             context.fireChannelWritabilityChanged()
           } catch {
+            logger.error("Failed to complete authentication setup: \(error)")
             context.fireErrorCaught(error)
           }
         } else if line.starts(with: "REJECTED ") {
+          let mechanisms = String(line.dropFirst(9)).trimmingCharacters(in: .whitespacesAndNewlines)
+          logger.error("Authentication rejected by server. Available mechanisms: \(mechanisms)")
           context.fireErrorCaught(DBusAuthenticationError.invalidAuthCommand)
           // let mechanisms = line.split(separator: " ")
           //     .dropFirst()
 
           return
         } else {
+          logger.error(
+            "Received unexpected authentication response: \(line.trimmingCharacters(in: .whitespacesAndNewlines))"
+          )
           state = .failed
           context.fireErrorCaught(DBusAuthenticationError.invalidAuthCommand)
           return
@@ -195,6 +211,8 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
   /// Sends the initial NUL byte followed by the AUTH command
   /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-command
   internal func channelActive(context: ChannelHandlerContext) {
+    logger.info("Starting D-Bus authentication")
+
     // Send initial NUL byte and AUTH command
     var buf = context.channel.allocator.buffer(capacity: 64)
     buf.writeInteger(UInt8(0))
@@ -205,14 +223,18 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
     switch self.auth.backing {
     case .anonymous:
       auth = "AUTH ANONYMOUS\r\n"
+      logger.debug("Using ANONYMOUS authentication")
     case .external(let userID):
       let hex = userID.utf8.map { byte in
         let hexString = String(byte, radix: 16)
         return hexString.count == 1 ? "0\(hexString)" : hexString
       }.joined()
       auth = "AUTH EXTERNAL \(hex)\r\n"
+      logger.debug("Using EXTERNAL authentication with userID: \(userID)")
     }
     buf.writeString(auth)
+    logger.trace(
+      "Sending authentication command: \(auth.trimmingCharacters(in: .whitespacesAndNewlines))")
     context.writeAndFlush(self.wrapOutboundOut(buf), promise: nil)
   }
 }

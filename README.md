@@ -162,6 +162,68 @@ do {
 }
 ```
 
+### Using Custom Logging
+
+DBusSwift supports custom logging to help with debugging and understanding internal operations. You can provide your own logger implementation or use the built-in adapters.
+
+#### Default Swift Logging
+
+```swift
+import Logging
+import DBusSwift
+
+// Create a custom logger
+let customLogger = DefaultDBusLogger(label: "com.myapp.dbus")
+
+// Use it in connections
+let address = try SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket")
+let result = try await DBusClient.withConnection(to: address, auth: .anonymous, logger: customLogger) { replies, send in
+    // Your D-Bus operations with logging
+    let message = DBusMessage.createMethodCall(
+        destination: "org.freedesktop.DBus",
+        path: "/org/freedesktop/DBus", 
+        interface: "org.freedesktop.DBus",
+        method: "ListNames",
+        serial: 1
+    )
+    try await send(message)
+    return try await replies.next()
+}
+```
+
+#### Custom Logger Implementation
+
+```swift
+struct MyCustomLogger: DBusLogger {
+    func trace(_ message: @autoclosure () -> String, file: String, function: String, line: UInt) {
+        // Your custom trace logging
+        MyLoggingSystem.log(level: .trace, message: message(), file: file, function: function, line: line)
+    }
+    
+    func debug(_ message: @autoclosure () -> String, file: String, function: String, line: UInt) {
+        // Your custom debug logging  
+        MyLoggingSystem.log(level: .debug, message: message(), file: file, function: function, line: line)
+    }
+    
+    // Implement other log levels...
+}
+
+// Use your custom logger
+let logger = MyCustomLogger()
+let result = try await DBusClient.withConnection(to: address, auth: .anonymous, logger: logger) { replies, send in
+    // Operations will be logged using your custom logger
+}
+```
+
+#### Disabling Logging
+
+```swift
+// Use NoOpDBusLogger to disable logging
+let result = try await DBusClient.withConnection(to: address, auth: .anonymous, logger: NoOpDBusLogger()) { replies, send in
+    // No logging output
+}
+```
+
 ## D-Bus Type Signatures
 
 DBusSwift maps D-Bus types to Swift types as follows:

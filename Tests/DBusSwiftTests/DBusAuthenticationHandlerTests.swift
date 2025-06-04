@@ -12,7 +12,7 @@ struct DBusAuthenticationHandlerTests {
   @Test func initialNulByteSending() throws {
     // Set up an embedded channel using DBusClient's configuration
     let channel = EmbeddedChannel()
-    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
+    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous, logger: NoOpDBusLogger())
 
     // Activate the channel
     channel.pipeline.fireChannelActive()
@@ -40,7 +40,8 @@ struct DBusAuthenticationHandlerTests {
     }.joined()
 
     let channel = EmbeddedChannel()
-    try DBusClient.addToPipeline(channel.pipeline, auth: .external(userID: userId))
+    try DBusClient.addToPipeline(
+      channel.pipeline, auth: .external(userID: userId), logger: NoOpDBusLogger())
 
     // Activate the channel
     channel.pipeline.fireChannelActive()
@@ -63,7 +64,7 @@ struct DBusAuthenticationHandlerTests {
 
   @Test func completeAuthenticationCycle() throws {
     let channel = EmbeddedChannel()
-    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
+    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous, logger: NoOpDBusLogger())
 
     // Activate the channel (sends initial NUL byte + AUTH command)
     channel.pipeline.fireChannelActive()
@@ -115,15 +116,15 @@ struct DBusAuthenticationHandlerTests {
 
   @Test func rejectedAuthentication() throws {
     let channel = EmbeddedChannel()
-    
+
     // Add error handler to verify the correct error is thrown
     var capturedError: Error?
     let errorHandler = ErrorCollector { error in
       capturedError = error
     }
     try channel.pipeline.addHandler(errorHandler).wait()
-    
-    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
+
+    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous, logger: NoOpDBusLogger())
 
     // Activate the channel
     channel.pipeline.fireChannelActive()
@@ -134,7 +135,7 @@ struct DBusAuthenticationHandlerTests {
     // Send REJECTED response
     var rejectedBuffer = channel.allocator.buffer(capacity: 32)
     rejectedBuffer.writeString("REJECTED EXTERNAL DBUS_COOKIE_SHA1\r\n")
-    
+
     // This will throw an error in the handler
     do {
       try channel.writeInbound(rejectedBuffer)
@@ -148,7 +149,7 @@ struct DBusAuthenticationHandlerTests {
     if let dbusError = capturedError as? DBusAuthenticationError {
       #expect(dbusError == .invalidAuthCommand, "Should receive invalidAuthCommand error")
     }
-    
+
     // No BEGIN command should be sent
     #expect(
       try channel.readOutbound(as: ByteBuffer.self) == nil,
@@ -170,7 +171,7 @@ struct DBusAuthenticationHandlerTests {
     )
     try channel.pipeline.addHandler(writabilityTracker).wait()
 
-    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
+    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous, logger: NoOpDBusLogger())
 
     // Activate the channel
     channel.pipeline.fireChannelActive()
@@ -204,7 +205,7 @@ struct DBusAuthenticationHandlerTests {
 
   @Test func partialDataHandling() throws {
     let channel = EmbeddedChannel()
-    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
+    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous, logger: NoOpDBusLogger())
 
     // Activate the channel
     channel.pipeline.fireChannelActive()

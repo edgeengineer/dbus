@@ -24,7 +24,7 @@ import NIOExtras
 ///         serial: 1
 ///     )
 ///     try await send(message)
-///     
+///
 ///     if let reply = try await replies.next() {
 ///         // Process the reply
 ///         return reply
@@ -92,6 +92,7 @@ public struct DBusClient: Sendable {
   /// - Parameters:
   ///   - address: The socket address of the D-Bus service to connect to.
   ///   - auth: The authentication type to use for the connection (e.g., `.anonymous` or `.external(userID:)`).
+  ///   - logger: The logger to use for D-Bus operations. Defaults to a logger with label "dbus.client".
   ///   - handler: An async closure that receives ``Replies`` and ``Send`` instances for communicating with the bus.
   ///             The handler should return a value of type `R`.
   ///
@@ -103,24 +104,33 @@ public struct DBusClient: Sendable {
   /// let names = try await DBusClient.withConnection(to: address, auth: .anonymous) { replies, send in
   ///     // Send a message
   ///     try await send(listNamesMessage)
-  ///     
+  ///
   ///     // Wait for reply
   ///     guard let reply = try await replies.next() else {
   ///         throw DBusError.noReply
   ///     }
-  ///     
+  ///
   ///     return reply.body
+  /// }
+  /// ```
+  ///
+  /// ## Custom Logging Example
+  /// ```swift
+  /// let logger = DefaultDBusLogger(label: "com.myapp.dbus")
+  /// let names = try await DBusClient.withConnection(to: address, auth: .anonymous, logger: logger) { replies, send in
+  ///     // ... handle connection
   /// }
   /// ```
   public static func withConnection<R: Sendable>(
     to address: SocketAddress,
     auth: AuthType,
+    logger: DBusLogger = DefaultDBusLogger(label: "dbus.client"),
     _ handler: @Sendable @escaping (inout Replies, Send) async throws -> R
   ) async throws -> R {
     let bootstrap = ClientBootstrap(group: MultiThreadedEventLoopGroup.singleton)
       .channelInitializer { channel in
         do {
-          try DBusClient.addToPipeline(channel.pipeline, auth: auth)
+          try DBusClient.addToPipeline(channel.pipeline, auth: auth, logger: logger)
           return channel.eventLoop.makeSucceededVoidFuture()
         } catch {
           return channel.eventLoop.makeFailedFuture(error)
@@ -146,12 +156,13 @@ public struct DBusClient: Sendable {
     }
   }
 
-  static func addToPipeline(_ pipeline: ChannelPipeline, auth: AuthType) throws {
+  static func addToPipeline(_ pipeline: ChannelPipeline, auth: AuthType, logger: DBusLogger) throws
+  {
     let handlers: [any ChannelHandler] = [
       ByteToMessageHandler(LineBasedFrameDecoder()),
-      DBusAuthenticationHandler(auth: auth),
-      ByteToMessageHandler(DBusMessageDecoder()),
-      MessageToByteHandler(DBusMessageEncoder()),
+      DBusAuthenticationHandler(auth: auth, logger: logger),
+      ByteToMessageHandler(DBusMessageDecoder(logger: logger)),
+      MessageToByteHandler(DBusMessageEncoder(logger: logger)),
     ]
     try pipeline.syncOperations.addHandlers(handlers)
   }
