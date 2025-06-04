@@ -3,8 +3,34 @@ import NIO
 import NIOCore
 import NIOExtras
 
-/// Authentication types supported for DBus connections
-/// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms
+/// Authentication types supported for D-Bus connections.
+///
+/// D-Bus supports several authentication mechanisms. This library currently implements
+/// ANONYMOUS and EXTERNAL authentication methods.
+///
+/// ## Overview
+/// 
+/// Authentication is the first step when establishing a D-Bus connection. The client and server
+/// negotiate which authentication mechanism to use before any D-Bus messages can be exchanged.
+///
+/// ## Supported Authentication Types
+///
+/// - **Anonymous**: No credentials are required. This is typically used for session buses
+///   or when security is handled at a different layer.
+/// - **External**: Uses the process's user ID for authentication. This is commonly used
+///   for system buses where the operating system has already authenticated the user.
+///
+/// ## Example
+/// ```swift
+/// // Anonymous authentication
+/// let client = try await DBusClient.withConnection(to: address, auth: .anonymous) { ... }
+///
+/// // External authentication with current user ID
+/// let userID = String(getuid())
+/// let client = try await DBusClient.withConnection(to: address, auth: .external(userID: userID)) { ... }
+/// ```
+///
+/// - SeeAlso: [D-Bus Authentication Mechanisms](https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms)
 public struct AuthType: Sendable {
   internal enum Backing: Sendable {
     /// Anonymous authentication (no credentials)
@@ -18,12 +44,34 @@ public struct AuthType: Sendable {
 
   let backing: Backing
 
-  /// Anonymous authentication (no credentials)
-  /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-anonymous
+  /// Anonymous authentication that requires no credentials.
+  ///
+  /// This authentication method is typically used for:
+  /// - Session buses where all processes belong to the same user
+  /// - Test environments
+  /// - Situations where security is handled at a different layer
+  ///
+  /// - SeeAlso: [D-Bus ANONYMOUS Authentication](https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-anonymous)
   public static let anonymous = AuthType(backing: .anonymous)
 
-  /// External authentication using provided user ID
-  /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-external
+  /// External authentication using a provided user ID.
+  ///
+  /// This authentication method uses the operating system's user ID to authenticate
+  /// the connection. It's commonly used for system buses where the OS has already
+  /// authenticated the user.
+  ///
+  /// - Parameter userID: The user ID to use for authentication, typically obtained from `getuid()`.
+  /// - Returns: An `AuthType` configured for external authentication.
+  ///
+  /// ## Example
+  /// ```swift
+  /// import Foundation
+  /// 
+  /// let userID = String(getuid())
+  /// let auth = AuthType.external(userID: userID)
+  /// ```
+  ///
+  /// - SeeAlso: [D-Bus EXTERNAL Authentication](https://dbus.freedesktop.org/doc/dbus-specification.html#auth-mechanisms-external)
   public static func external(userID: String) -> AuthType {
     AuthType(backing: .external(userID: userID))
   }
