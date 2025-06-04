@@ -31,7 +31,7 @@ import NIOCore
 public struct HeaderField: Sendable {
   /// The type of this header field.
   public let code: HeaderField.Code
-  
+
   /// The value of this header field, wrapped in a variant.
   public let variant: DBusVariant
 

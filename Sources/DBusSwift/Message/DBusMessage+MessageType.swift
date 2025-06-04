@@ -23,7 +23,7 @@ extension DBusMessage {
     /// Required header fields: path, member (method name)
     /// Optional header fields: interface, destination
     case methodCall = 1
-    
+
     /// A method return message.
     ///
     /// Method returns are sent in response to method calls and contain the return values from the
@@ -32,7 +32,7 @@ extension DBusMessage {
     ///
     /// Required header fields: replySerial
     case methodReturn = 2
-    
+
     /// An error message.
     ///
     /// Error messages are sent in response to method calls when something goes wrong. They contain
@@ -40,11 +40,11 @@ extension DBusMessage {
     ///
     /// Required header fields: errorName, replySerial
     case error = 3
-    
+
     /// A signal message.
     ///
     /// Signals are broadcast messages that notify interested parties about events. Unlike method calls,
-    /// signals don't expect a reply. They're used for notifications like "property changed" or 
+    /// signals don't expect a reply. They're used for notifications like "property changed" or
     /// "device added".
     ///
     /// Required header fields: path, interface, member (signal name)

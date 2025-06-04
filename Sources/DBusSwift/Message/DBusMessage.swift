@@ -26,26 +26,26 @@ import NIOCore
 public struct DBusMessage: Sendable {
   /// The byte order used for encoding numeric values in this message.
   public var byteOrder: Endianness
-  
+
   /// The type of this message (method call, method return, error, or signal).
   public var messageType: MessageType
-  
+
   /// Flags that modify the behavior of this message.
   public var flags: Flags
-  
+
   /// The D-Bus protocol version (typically 1).
   public var protocolVersion: UInt8
-  
+
   /// A unique serial number identifying this message.
   ///
   /// Serial numbers are used to match method returns and errors with their corresponding method calls.
   public var serial: UInt32
-  
+
   /// Header fields containing metadata about the message.
   ///
   /// Common header fields include destination, path, interface, member, and signature.
   public var headerFields: [HeaderField]
-  
+
   /// The message body containing the actual data payload.
   ///
   /// The body is an array of ``DBusValue`` instances that represent the arguments or return values of the message.

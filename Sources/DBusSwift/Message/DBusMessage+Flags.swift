@@ -38,7 +38,7 @@ extension DBusMessage {
     ///
     /// - Note: Even with this flag set, the message may still generate signals or other side effects.
     public static let noReplyExpected = Flags(rawValue: 0x1)
-    
+
     /// Prevents auto-starting of services when sending this message.
     ///
     /// By default, if a message is sent to a service that isn't currently running, D-Bus may
@@ -47,7 +47,7 @@ extension DBusMessage {
     ///
     /// This is useful when you want to check if a service is running without inadvertently starting it.
     public static let noAutoStart = Flags(rawValue: 0x2)
-    
+
     /// Allows interactive authorization for this method call.
     ///
     /// When set, this flag indicates that the method call may trigger an interactive authorization
