@@ -82,7 +82,7 @@ sudo apt-get install libdbus-1-3
 ### Connecting to D-Bus
 
 ```swift
-import DBusSwift
+import DBUS
 
 // Connect to the session bus
 let sessionBus = try DBusAsync(busType: .session)
@@ -161,6 +161,10 @@ do {
     print("Other error: \(error)")
 }
 ```
+
+### Using Logging
+
+DBUS logs to [swift-log](https://github.com/swiftlang/swift-log) to help with debugging and understanding internal operations. You can provide your own logger implementation or use the standard adapters. We'll log to `.debug` and `.trace` levels in compliant with [established standards](https://www.swift.org/documentation/server/guides/libraries/log-levels.html).
 
 ## D-Bus Type Signatures
 

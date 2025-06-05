@@ -58,13 +58,21 @@ jobs:
     - name: Run Tests
       shell: bash
       run: |
+        args=(
+          --configuration release  
+        )
+
+        if [ -n "${{ matrix.swift-sdk }}" ]; then
+          args+=(--swift-sdk "${{ matrix.swift-sdk }}")
+        fi
+
         swift test --enable-code-coverage "${args[@]}"
         
     # Generate code coverage report
     - name: Generate Code Coverage Report
       shell: bash
       run: |
-        llvm-cov export -format="lcov" .build/debug/*.xctest -instr-profile .build/debug/codecov/default.profdata > coverage.lcov
+        llvm-cov export -format="lcov" .build/release/*.xctest -instr-profile .build/release/codecov/default.profdata > coverage.lcov
     
     # Install dependencies for Codecov
     - name: Install dependencies
