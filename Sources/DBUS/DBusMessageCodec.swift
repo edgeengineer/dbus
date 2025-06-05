@@ -17,7 +17,12 @@ struct DBusMessageDecoder: ByteToMessageDecoder {
       buffer.discardReadBytes()
       let msg = try DBusMessage(from: &buffer)
       logger.trace(
-        "Successfully decoded D-Bus message: type=\(msg.messageType), serial=\(msg.serial)")
+        "Successfully decoded D-Bus message",
+        metadata: [
+          "type": "\(msg.messageType)",
+          "serial": "\(msg.serial)"
+        ]
+      )
       context.fireChannelRead(self.wrapInboundOut(msg))
       return .continue
     } catch DBusError.truncatedHeaderFields, DBusError.truncatedBody {
@@ -26,7 +31,9 @@ struct DBusMessageDecoder: ByteToMessageDecoder {
       buffer.moveReaderIndex(to: index)
       return .needMoreData
     } catch {
-      logger.debug("Failed to decode D-Bus message: \(error)")
+      logger.debug("Failed to decode D-Bus message", metadata: [
+        "error": "\(error)"
+      ])
       throw error
     }
   }
@@ -42,8 +49,13 @@ struct DBusMessageEncoder: MessageToByteEncoder {
   }
 
   func encode(data: DBusMessage, out: inout ByteBuffer) throws {
-    logger.trace("Encoding D-Bus message: type=\(data.messageType), serial=\(data.serial)")
+    logger.trace("Encoding D-Bus message", metadata: [
+      "type": "\(data.messageType)",
+      "serial": "\(data.serial)"
+    ])
     data.write(to: &out)
-    logger.trace("Encoded message to \(out.readableBytes) bytes")
+    logger.trace("Encoded message to bytes", metadata: [
+      "byte-size": "\(out.readableBytes)"
+    ])
   }
 }

@@ -355,6 +355,221 @@ public indirect enum DBusValue: Hashable, Sendable {
 }
 
 extension DBusValue {
+  /// Returns the byte value if this value is a byte or a variant containing a byte.
+  ///
+  /// - Returns: The byte value if this value is a byte or a variant containing a byte, otherwise `nil`.
+  public var byte: UInt8? {
+    switch self {
+    case .byte(let value):
+      return value
+    case .variant(let variant):
+      guard case .byte(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the uint8 value if this value is a uint8 or a variant containing a uint8.
+  ///
+  /// - Returns: The uint8 value if this value is a uint8 or a variant containing a uint8, otherwise `nil`.
+  public var uint8: UInt8? { byte }
+
+  /// Returns the boolean value if this value is a boolean or a variant containing a boolean.
+  ///
+  /// - Returns: The boolean value if this value is a boolean or a variant containing a boolean, otherwise `nil`.
+  public var boolean: Bool? {
+    switch self {
+    case .boolean(let value):
+      return value
+    case .variant(let variant):
+      guard case .boolean(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the int16 value if this value is an int16 or a variant containing an int16.
+  ///
+  /// - Returns: The int16 value if this value is an int16 or a variant containing an int16, otherwise `nil`.
+  public var int16: Int16? {
+    switch self {
+    case .int16(let value):
+      return value
+    case .variant(let variant):
+      guard case .int16(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the uint16 value if this value is a uint16 or a variant containing a uint16.
+  ///
+  /// - Returns: The uint16 value if this value is a uint16 or a variant containing a uint16, otherwise `nil`.
+  public var uint16: UInt16? {
+    switch self {
+    case .uint16(let value):
+      return value
+    case .variant(let variant):
+      guard case .uint16(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the int32 value if this value is an int32 or a variant containing an int32.
+  ///
+  /// - Returns: The int32 value if this value is an int32 or a variant containing an int32, otherwise `nil`.
+  public var int32: Int32? {
+    switch self {
+    case .int32(let value):
+      return value
+    case .variant(let variant):
+      guard case .int32(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the int64 value if this value is an int64 or a variant containing an int64.
+  ///
+  /// - Returns: The int64 value if this value is an int64 or a variant containing an int64, otherwise `nil`.
+  public var int64: Int64? {
+    switch self {
+    case .int64(let value):
+      return value
+    case .variant(let variant):
+      guard case .int64(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the uint64 value if this value is a uint64 or a variant containing a uint64.
+  ///
+  /// - Returns: The uint64 value if this value is a uint64 or a variant containing a uint64, otherwise `nil`.
+  public var uint64: UInt64? {
+    switch self {
+    case .uint64(let value):
+      return value
+    case .variant(let variant):
+      guard case .uint64(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the double value if this value is a double or a variant containing a double.
+  ///
+  /// - Returns: The double value if this value is a double or a variant containing a double, otherwise `nil`.
+  public var double: Double? {
+    switch self {
+    case .double(let value):
+      return value
+    case .variant(let variant):
+      guard case .double(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the string value if this value is a string or a variant containing a string.
+  ///
+  /// - Returns: The string value if this value is a string or a variant containing a string, otherwise `nil`.
+  public var string: String? {
+    switch self {
+    case .string(let value):
+      return value
+    case .variant(let variant):
+      guard case .string(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the Unix file descriptor if this value is a Unix FD or a variant containing a Unix FD.
+  ///
+  /// - Returns: The Unix file descriptor if this value is a Unix FD or a variant containing a Unix FD, otherwise `nil`.
+  public var unixFd: UInt32? {
+    switch self {
+    case .unixFd(let value):
+      return value
+    case .variant(let variant):
+      guard case .unixFd(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the array values if this value is an array or a variant containing an array.
+  ///
+  /// - Returns: The array values if this value is an array or a variant containing an array, otherwise `nil`.
+  public var array: [DBusValue]? {
+    switch self {
+    case .array(let values):
+      return values
+    case .variant(let variant):
+      guard case .array(let values) = variant.value else { return nil }
+      return values
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the structure values if this value is a structure or a variant containing a structure.
+  ///
+  /// - Returns: The structure values if this value is a structure or a variant containing a structure, otherwise `nil`.
+  public var structure: [DBusValue]? {
+    switch self {
+    case .structure(let values):
+      return values
+    case .variant(let variant):
+      guard case .structure(let values) = variant.value else { return nil }
+      return values
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the object path if this value is an object path or a variant containing an object path.
+  ///
+  /// - Returns: The object path if this value is an object path or a variant containing an object path, otherwise `nil`.
+  public var objectPath: String? {
+    switch self {
+    case .objectPath(let path):
+      return path
+    case .variant(let variant):
+      guard case .objectPath(let path) = variant.value else { return nil }
+      return path
+    default:
+      return nil
+    }
+  }
+
+  /// Returns the uint32 value if this value is a uint32 or a variant containing a uint32.
+  ///
+  /// - Returns: The uint32 value if this value is a uint32 or a variant containing a uint32, otherwise `nil`.
+  public var uint32: UInt32? {
+    switch self {
+    case .uint32(let value):
+      return value
+    case .variant(let variant):
+      guard case .uint32(let value) = variant.value else { return nil }
+      return value
+    default:
+      return nil
+    }
+  }
+
   /// Writes this D-Bus value to a ByteBuffer according to the D-Bus marshaling rules.
   ///
   /// This method handles proper alignment and endianness conversion when writing values.

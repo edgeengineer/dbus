@@ -1,5 +1,102 @@
 import NIOCore
 
+public struct DBusRequest: Sendable {
+  /// The byte order used for encoding numeric values in this message.
+  public var byteOrder: Endianness
+
+  /// The type of this message (method call, method return, error, or signal).
+  public var messageType: DBusMessage.MessageType
+
+  /// Flags that modify the behavior of this message.
+  public var flags: DBusMessage.Flags
+
+  /// The D-Bus protocol version (typically 1).
+  public var protocolVersion: UInt8
+
+  /// Header fields containing metadata about the message.
+  ///
+  /// Common header fields include destination, path, interface, member, and signature.
+  public var headerFields: [HeaderField]
+
+  /// The message body containing the actual data payload.
+  ///
+  /// The body is an array of ``DBusValue`` instances that represent the arguments or return values of the message.
+  public var body: [DBusValue]
+
+  /// Creates a D-Bus method call message.
+  ///
+  /// This is the primary way to create messages for invoking methods on D-Bus services.
+  ///
+  /// - Parameters:
+  ///   - destination: The bus name of the service to send the message to (e.g., "org.freedesktop.DBus").
+  ///   - path: The object path of the target object (e.g., "/org/freedesktop/DBus").
+  ///   - interface: The interface containing the method (e.g., "org.freedesktop.DBus").
+  ///   - method: The name of the method to call (e.g., "ListNames").
+  ///   - serial: A unique serial number for this message.
+  ///   - body: An array of ``DBusValue`` instances representing the method arguments. Defaults to empty.
+  ///   - flags: Message flags to set. Defaults to no flags.
+  ///
+  /// - Returns: A configured ``DBusMessage`` ready to be sent.
+  ///
+  /// ## Example
+  /// ```swift
+  /// let message = DBusMessage.createMethodCall(
+  ///     destination: "org.freedesktop.DBus",
+  ///     path: "/org/freedesktop/DBus",
+  ///     interface: "org.freedesktop.DBus",
+  ///     method: "ListNames",
+  ///     serial: 1
+  /// )
+  /// ```
+  public static func createMethodCall(
+    destination: String,
+    path: String,
+    interface: String,
+    method: String,
+    body: [DBusValue] = [],
+    flags: DBusMessage.Flags = []
+  ) -> DBusRequest {
+    var headerFields = [
+      HeaderField(
+        code: .destination,
+        variant: DBusVariant(.string(destination))
+      ),
+      HeaderField(
+        code: .path,
+        variant: DBusVariant(.objectPath(path))
+      ),
+      HeaderField(
+        code: .interface,
+        variant: DBusVariant(.string(interface))
+      ),
+      HeaderField(
+        code: .member,
+        variant: DBusVariant(.string(method))
+      ),
+    ]
+
+    if !body.isEmpty {
+      headerFields.append(
+        HeaderField(
+          code: .signature,
+          variant: DBusVariant(
+            .signature(body.map(\.dbusTypeSignature).joined())
+          )
+        )
+      )
+    }
+
+    return DBusRequest(
+      byteOrder: .host,
+      messageType: .methodCall,
+      flags: flags,
+      protocolVersion: 1,
+      headerFields: headerFields,
+      body: body
+    )
+  }
+}
+
 /// A D-Bus message that can be sent or received over a D-Bus connection.
 ///
 /// `DBusMessage` represents the fundamental unit of communication in D-Bus. Each message has a type
@@ -197,84 +294,14 @@ public struct DBusMessage: Sendable {
     return result
   }
 
-  /// Creates a D-Bus method call message.
-  ///
-  /// This is the primary way to create messages for invoking methods on D-Bus services.
-  ///
-  /// - Parameters:
-  ///   - destination: The bus name of the service to send the message to (e.g., "org.freedesktop.DBus").
-  ///   - path: The object path of the target object (e.g., "/org/freedesktop/DBus").
-  ///   - interface: The interface containing the method (e.g., "org.freedesktop.DBus").
-  ///   - method: The name of the method to call (e.g., "ListNames").
-  ///   - serial: A unique serial number for this message.
-  ///   - body: An array of ``DBusValue`` instances representing the method arguments. Defaults to empty.
-  ///   - flags: Message flags to set. Defaults to no flags.
-  ///
-  /// - Returns: A configured ``DBusMessage`` ready to be sent.
-  ///
-  /// ## Example
-  /// ```swift
-  /// let message = DBusMessage.createMethodCall(
-  ///     destination: "org.freedesktop.DBus",
-  ///     path: "/org/freedesktop/DBus",
-  ///     interface: "org.freedesktop.DBus",
-  ///     method: "ListNames",
-  ///     serial: 1
-  /// )
-  /// ```
-  public static func createMethodCall(
-    destination: String,
-    path: String,
-    interface: String,
-    method: String,
-    serial: UInt32,
-    body: [DBusValue] = [],
-    flags: Flags = []
-  ) -> DBusMessage {
-    var headerFields = [
-      HeaderField(
-        code: .destination,
-        variant: DBusVariant(.string(destination))
-      ),
-      HeaderField(
-        code: .path,
-        variant: DBusVariant(.objectPath(path))
-      ),
-      HeaderField(
-        code: .interface,
-        variant: DBusVariant(.string(interface))
-      ),
-      HeaderField(
-        code: .member,
-        variant: DBusVariant(.string(method))
-      ),
-    ]
-
-    if !body.isEmpty {
-      headerFields.append(
-        HeaderField(
-          code: .signature,
-          variant: DBusVariant(
-            .signature(body.map(\.dbusTypeSignature).joined())
-          )
-        )
-      )
-    }
-
-    return DBusMessage(
-      byteOrder: .host,
-      messageType: .methodCall,
-      flags: flags,
-      protocolVersion: 1,
-      serial: serial,
-      headerFields: headerFields,
-      body: body
-    )
-  }
-
   internal init(
-    byteOrder: Endianness, messageType: MessageType, flags: Flags, protocolVersion: UInt8,
-    serial: UInt32, headerFields: [HeaderField], body: [DBusValue]
+    byteOrder: Endianness,
+    messageType: MessageType,
+    flags: Flags,
+    protocolVersion: UInt8,
+    serial: UInt32,
+    headerFields: [HeaderField],
+    body: [DBusValue]
   ) {
     self.byteOrder = byteOrder
     self.messageType = messageType
@@ -381,5 +408,55 @@ extension DBusMessage {
     let bodyLen = UInt32(bodyEnd - bodyStart)
     // Patch body length
     buffer.setInteger(bodyLen, at: bodyLenPos, endianness: byteOrder)
+  }
+
+  package static func createMethodCall(
+    destination: String,
+    path: String,
+    interface: String,
+    method: String,
+    serial: UInt32,
+    body: [DBusValue] = [],
+    flags: Flags = []
+  ) -> DBusMessage {
+    var headerFields = [
+      HeaderField(
+        code: .destination,
+        variant: DBusVariant(.string(destination))
+      ),
+      HeaderField(
+        code: .path,
+        variant: DBusVariant(.objectPath(path))
+      ),
+      HeaderField(
+        code: .interface,
+        variant: DBusVariant(.string(interface))
+      ),
+      HeaderField(
+        code: .member,
+        variant: DBusVariant(.string(method))
+      ),
+    ]
+
+    if !body.isEmpty {
+      headerFields.append(
+        HeaderField(
+          code: .signature,
+          variant: DBusVariant(
+            .signature(body.map(\.dbusTypeSignature).joined())
+          )
+        )
+      )
+    }
+
+    return DBusMessage(
+      byteOrder: .host,
+      messageType: .methodCall,
+      flags: flags,
+      protocolVersion: 1,
+      serial: serial,
+      headerFields: headerFields,
+      body: body
+    )
   }
 }

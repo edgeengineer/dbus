@@ -10,7 +10,7 @@ A Swift 6 wrapper for the D-Bus C library with support for modern Swift concurre
 
 ## Overview
 
-DBusSwift is a Swift package that provides a Swift-friendly interface to D-Bus, a message bus system used for interprocess communication on Linux systems. This library enables Swift applications to communicate with system services and other applications on Linux.
+DBUS is a Swift package that provides a Swift-friendly interface to D-Bus, a message bus system used for interprocess communication on Linux systems. This library enables Swift applications to communicate with system services and other applications on Linux.
 
 ## Features
 
@@ -24,11 +24,10 @@ DBusSwift is a Swift package that provides a Swift-friendly interface to D-Bus, 
 ## Requirements
 
 - Swift 6.0 or later
-- libdbus-1-dev package installed
 
 ### Platform Support
 
-DBusSwift is designed specifically for Linux environments where D-Bus is natively available. D-Bus is a core component of Linux desktop environments and is not natively supported on other platforms.
+DBUS is designed specifically for Linux environments where D-Bus is natively available. D-Bus is a core component of Linux desktop environments and is not natively supported on other platforms.
 
 #### Docker Testing
 
@@ -49,7 +48,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/edgeengineer/dbus.git", from: "0.0.1")
+    .package(url: "https://github.com/edgeengineer/dbus.git", from: "0.1.0")
 ]
 ```
 
@@ -58,23 +57,7 @@ Then add the dependency to your target:
 ```swift
 .target(
     name: "YourTarget",
-    dependencies: ["DBusSwift"]),
-```
-
-### Linux Dependencies
-
-#### For Development
-If you're developing applications with DBusSwift or building the package from source, you need the D-Bus development package:
-
-```bash
-sudo apt-get install libdbus-1-dev
-```
-
-#### For Runtime Only
-If you're only running applications that use DBusSwift (e.g., distributing a compiled application), you only need the runtime library:
-
-```bash
-sudo apt-get install libdbus-1-3
+    dependencies: ["DBUS"]),
 ```
 
 ## Usage
@@ -84,6 +67,12 @@ sudo apt-get install libdbus-1-3
 ```swift
 import DBUS
 
+try await DBusClient.withConnection(
+    to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket"),
+    auth: .external(userID: uid)
+) { replies, send in
+    // You've got a DBUS connection!
+}
 // Connect to the session bus
 let sessionBus = try DBusAsync(busType: .session)
 
@@ -145,20 +134,28 @@ if let pid = result.first as? UInt32 {
 ### Handling Errors
 
 ```swift
-do {
-    let dbus = try DBusAsync(busType: .session)
-    // Use dbus...
-} catch let error as DBusConnectionError {
-    switch error {
-    case .connectionFailed(let reason):
-        print("Connection failed: \(reason)")
-    case .messageFailed(let reason):
-        print("Message failed: \(reason)")
-    case .invalidReply(let reason):
-        print("Invalid reply: \(reason)")
+try await DBusClient.withConnection(
+    to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket"),
+    auth: .external(userID: "0") // root user
+) { replies, send in
+    // Send request
+    try await send(DBusMessage.createMethodCall(
+        destination: "org.freedesktop.DBus",
+        path: "/org/freedesktop/DBus",
+        interface: "org.freedesktop.DBus",
+        method: "Hello",
+        serial: 1
+    ))
+
+    guard 
+        let helloReply = try await replies.next(),
+        case .methodReturn = helloReply.messageType
+    else {
+        print("No reply from Hello method call")
+        return
     }
-} catch {
-    print("Other error: \(error)")
+
+    print("Received reply from Hello method call \(helloReply)")
 }
 ```
 
@@ -184,8 +181,8 @@ DBusSwift maps D-Bus types to Swift types as follows:
 | String     | s         | String     |
 | Object Path| o         | String     |
 | Signature  | g         | String     |
-| Array      | a         | [Any]      |
-| Variant    | v         | Any        |
+| Array      | a         | [DBusValue]|
+| Variant    | v         | DBusVariant|
 
 ## Testing
 
