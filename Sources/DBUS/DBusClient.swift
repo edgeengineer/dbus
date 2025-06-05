@@ -38,13 +38,13 @@ public struct DBusClient: Sendable {
   private let asyncChannel: NIOAsyncChannel<DBusMessage, DBusMessage>
 
   public actor Connection: Sendable {
-    private var replies: Replies
     public private(set) var send: Send
+    let logger: Logger
     private var continuations = [(UInt32, CheckedContinuation<DBusMessage, Error>)]()
 
-    internal init(replies: Replies, send: Send) {
-      self.replies = replies
+    internal init(send: Send, logger: Logger) {
       self.send = send
+      self.logger = logger
     }
 
     deinit {
@@ -53,8 +53,11 @@ public struct DBusClient: Sendable {
       }
     }
 
-    private func run(replies: inout Replies) async throws {
+    internal func run(replies: inout Replies) async throws {
       while let message = try await replies.next() {
+        logger.trace("Received message from DBUS", metadata: [
+          "replyTo": "\(message.replyTo)"
+        ])
         if let (_, continuation) = continuations.first(where: { $0.0 == message.replyTo }) {
           continuations.removeAll(where: { $0.0 == message.replyTo })
           continuation.resume(returning: message)
@@ -66,9 +69,15 @@ public struct DBusClient: Sendable {
       let requestId = try await send.send(request)
 
       if request.flags.contains(.noReplyExpected) {
+        logger.trace("Send request that does not expect a reply", metadata: [
+          "serial": "\(requestId)"
+        ])
         return nil
       }
 
+      logger.trace("Send request that expects a reply", metadata: [
+        "serial": "\(requestId)"
+      ])
       return try await withCheckedThrowingContinuation { continuation in
         continuations.append((requestId, continuation))
       }
@@ -186,8 +195,9 @@ public struct DBusClient: Sendable {
     _ handler: @Sendable @escaping (inout Connection) async throws -> R
   ) async throws -> R {
     return try await withConnectionPair(to: address, auth: auth, logger: logger) { replies, send in
-      var connection = Connection(replies: replies, send: send)
-      
+      var connection = Connection(send: send, logger: logger)
+      async let running = connection.run(replies: &replies)
+
       guard 
         let helloReply = try await connection.send(.createMethodCall(
           destination: "org.freedesktop.DBus",

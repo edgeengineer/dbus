@@ -132,7 +132,10 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
       case .waitingForOK:
         guard var line = buffer.readString(length: buffer.readableBytes) else { return }
         logger.trace(
-          "Received authentication response: \(line.trimmingCharacters(in: .whitespacesAndNewlines))"
+          "Received authentication response",
+          metadata: [
+            "response": "\(line.trimmingCharacters(in: .whitespacesAndNewlines))"
+          ]
         )
 
         if line.starts(with: "OK ") {
@@ -158,12 +161,16 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
             context.fireChannelActive()
             context.fireChannelWritabilityChanged()
           } catch {
-            logger.debug("Failed to complete authentication setup: \(error)")
+            logger.debug("Failed to complete authentication setup", metadata: [
+              "error": "\(error)"
+            ])
             context.fireErrorCaught(error)
           }
         } else if line.starts(with: "REJECTED ") {
           let mechanisms = String(line.dropFirst(9)).trimmingCharacters(in: .whitespacesAndNewlines)
-          logger.debug("Authentication rejected by server. Available mechanisms: \(mechanisms)")
+          logger.debug("Authentication rejected by server", metadata: [
+            "available-mechanisms": "\(mechanisms)"
+          ])
           context.fireErrorCaught(DBusAuthenticationError.invalidAuthCommand)
           // let mechanisms = line.split(separator: " ")
           //     .dropFirst()
@@ -171,7 +178,10 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
           return
         } else {
           logger.debug(
-            "Received unexpected authentication response: \(line.trimmingCharacters(in: .whitespacesAndNewlines))"
+            "Received unexpected authentication response",
+            metadata: [
+              "response": "\(line.trimmingCharacters(in: .whitespacesAndNewlines))"
+            ]
           )
           state = .failed
           context.fireErrorCaught(DBusAuthenticationError.invalidAuthCommand)
@@ -230,11 +240,17 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
         return hexString.count == 1 ? "0\(hexString)" : hexString
       }.joined()
       auth = "AUTH EXTERNAL \(hex)\r\n"
-      logger.debug("Using EXTERNAL authentication with userID: \(userID)")
+      logger.debug("Using EXTERNAL authentication", metadata: [
+        "user-id": "\(userID)"
+      ])
     }
     buf.writeString(auth)
     logger.trace(
-      "Sending authentication command: \(auth.trimmingCharacters(in: .whitespacesAndNewlines))")
+      "Sending authentication command",
+      metadata: [
+        "command": "\(auth.trimmingCharacters(in: .whitespacesAndNewlines))"
+      ]
+    )
     context.writeAndFlush(self.wrapOutboundOut(buf), promise: nil)
   }
 }
