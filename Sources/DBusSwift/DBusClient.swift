@@ -113,18 +113,10 @@ public struct DBusClient: Sendable {
   ///     return reply.body
   /// }
   /// ```
-  ///
-  /// ## Custom Logging Example
-  /// ```swift
-  /// let logger = DefaultDBusLogger(label: "com.myapp.dbus")
-  /// let names = try await DBusClient.withConnection(to: address, auth: .anonymous, logger: logger) { replies, send in
-  ///     // ... handle connection
-  /// }
-  /// ```
   public static func withConnection<R: Sendable>(
     to address: SocketAddress,
     auth: AuthType,
-    logger: DBusLogger = DefaultDBusLogger(label: "dbus.client"),
+    logger: Logger = Logger(label: "dbus.client"),
     _ handler: @Sendable @escaping (inout Replies, Send) async throws -> R
   ) async throws -> R {
     let bootstrap = ClientBootstrap(group: MultiThreadedEventLoopGroup.singleton)
@@ -156,8 +148,9 @@ public struct DBusClient: Sendable {
     }
   }
 
-  static func addToPipeline(_ pipeline: ChannelPipeline, auth: AuthType, logger: DBusLogger) throws
-  {
+  static func addToPipeline(
+    _ pipeline: ChannelPipeline, auth: AuthType, logger: Logger = Logger(label: "dbus.client")
+  ) throws {
     let handlers: [any ChannelHandler] = [
       ByteToMessageHandler(LineBasedFrameDecoder()),
       DBusAuthenticationHandler(auth: auth, logger: logger),

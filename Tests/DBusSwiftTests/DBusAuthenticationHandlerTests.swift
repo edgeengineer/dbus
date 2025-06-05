@@ -1,3 +1,4 @@
+import Logging
 import NIO
 import NIOCore
 import NIOExtras
@@ -12,7 +13,7 @@ struct DBusAuthenticationHandlerTests {
   @Test func initialNulByteSending() throws {
     // Set up an embedded channel using DBusClient's configuration
     let channel = EmbeddedChannel()
-    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous, logger: NoOpDBusLogger())
+    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
 
     // Activate the channel
     channel.pipeline.fireChannelActive()
@@ -41,7 +42,7 @@ struct DBusAuthenticationHandlerTests {
 
     let channel = EmbeddedChannel()
     try DBusClient.addToPipeline(
-      channel.pipeline, auth: .external(userID: userId), logger: NoOpDBusLogger())
+      channel.pipeline, auth: .external(userID: userId))
 
     // Activate the channel
     channel.pipeline.fireChannelActive()
@@ -64,7 +65,7 @@ struct DBusAuthenticationHandlerTests {
 
   @Test func completeAuthenticationCycle() throws {
     let channel = EmbeddedChannel()
-    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous, logger: NoOpDBusLogger())
+    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
 
     // Activate the channel (sends initial NUL byte + AUTH command)
     channel.pipeline.fireChannelActive()
@@ -124,7 +125,7 @@ struct DBusAuthenticationHandlerTests {
     }
     try channel.pipeline.addHandler(errorHandler).wait()
 
-    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous, logger: NoOpDBusLogger())
+    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
 
     // Activate the channel
     channel.pipeline.fireChannelActive()
@@ -171,7 +172,7 @@ struct DBusAuthenticationHandlerTests {
     )
     try channel.pipeline.addHandler(writabilityTracker).wait()
 
-    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous, logger: NoOpDBusLogger())
+    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
 
     // Activate the channel
     channel.pipeline.fireChannelActive()
@@ -205,7 +206,7 @@ struct DBusAuthenticationHandlerTests {
 
   @Test func partialDataHandling() throws {
     let channel = EmbeddedChannel()
-    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous, logger: NoOpDBusLogger())
+    try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
 
     // Activate the channel
     channel.pipeline.fireChannelActive()

@@ -4,9 +4,9 @@ import NIO
 struct DBusMessageDecoder: ByteToMessageDecoder {
   typealias InboundOut = DBusMessage
 
-  private let logger: DBusLogger
+  private let logger: Logger
 
-  init(logger: DBusLogger) {
+  init(logger: Logger) {
     self.logger = logger
   }
 
@@ -16,7 +16,7 @@ struct DBusMessageDecoder: ByteToMessageDecoder {
     do {
       buffer.discardReadBytes()
       let msg = try DBusMessage(from: &buffer)
-      logger.debug(
+      logger.trace(
         "Successfully decoded D-Bus message: type=\(msg.messageType), serial=\(msg.serial)")
       context.fireChannelRead(self.wrapInboundOut(msg))
       return .continue
@@ -26,7 +26,7 @@ struct DBusMessageDecoder: ByteToMessageDecoder {
       buffer.moveReaderIndex(to: index)
       return .needMoreData
     } catch {
-      logger.error("Failed to decode D-Bus message: \(error)")
+      logger.debug("Failed to decode D-Bus message: \(error)")
       throw error
     }
   }
@@ -35,14 +35,14 @@ struct DBusMessageDecoder: ByteToMessageDecoder {
 struct DBusMessageEncoder: MessageToByteEncoder {
   typealias OutboundIn = DBusMessage
 
-  private let logger: DBusLogger
+  private let logger: Logger
 
-  init(logger: DBusLogger) {
+  init(logger: Logger) {
     self.logger = logger
   }
 
   func encode(data: DBusMessage, out: inout ByteBuffer) throws {
-    logger.debug("Encoding D-Bus message: type=\(data.messageType), serial=\(data.serial)")
+    logger.trace("Encoding D-Bus message: type=\(data.messageType), serial=\(data.serial)")
     data.write(to: &out)
     logger.trace("Encoded message to \(out.readableBytes) bytes")
   }

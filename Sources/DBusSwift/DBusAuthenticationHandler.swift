@@ -102,10 +102,10 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
   private var state: State = .waitingForNullReply
   private var buffer = ByteBufferAllocator().buffer(capacity: 128)
   private let auth: AuthType
-  private let logger: DBusLogger
+  private let logger: Logger
   private var writeBuffer = [ByteBuffer]()
 
-  internal init(auth: AuthType, logger: DBusLogger) {
+  internal init(auth: AuthType, logger: Logger) {
     self.auth = auth
     self.logger = logger
   }
