@@ -82,7 +82,7 @@ sudo apt-get install libdbus-1-3
 ### Connecting to D-Bus
 
 ```swift
-import DBusSwift
+import DBUS
 
 // Connect to the session bus
 let sessionBus = try DBusAsync(busType: .session)

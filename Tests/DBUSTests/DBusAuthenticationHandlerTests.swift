@@ -4,7 +4,7 @@ import NIOCore
 import NIOExtras
 import Testing
 
-@testable import DBusSwift
+@testable import DBUS
 
 @Suite
 struct DBusAuthenticationHandlerTests {

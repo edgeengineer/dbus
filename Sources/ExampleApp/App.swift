@@ -1,4 +1,4 @@
-import DBusSwift
+import DBUS
 import NIO
 
 #if canImport(FoundationEssentials)

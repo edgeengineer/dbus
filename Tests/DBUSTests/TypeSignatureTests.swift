@@ -1,7 +1,7 @@
 import NIOCore
 import Testing
 
-@testable import DBusSwift
+@testable import DBUS
 
 @Suite
 struct TypeSignatureTests {
