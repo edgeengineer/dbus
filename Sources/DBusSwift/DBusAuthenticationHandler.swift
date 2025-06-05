@@ -137,7 +137,7 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
 
         if line.starts(with: "OK ") {
           line = String(line.dropFirst(3))
-          logger.info("Authentication successful, sending BEGIN command")
+          logger.debug("Authentication successful, sending BEGIN command")
 
           let begin = "BEGIN\r\n"
           let out = context.channel.allocator.buffer(string: begin)
@@ -154,23 +154,23 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
             }
             self.writeBuffer.removeAll(keepingCapacity: true)
             self.state = .authenticated
-            logger.info("D-Bus authentication completed successfully")
+            logger.debug("D-Bus authentication completed successfully")
             context.fireChannelActive()
             context.fireChannelWritabilityChanged()
           } catch {
-            logger.error("Failed to complete authentication setup: \(error)")
+            logger.debug("Failed to complete authentication setup: \(error)")
             context.fireErrorCaught(error)
           }
         } else if line.starts(with: "REJECTED ") {
           let mechanisms = String(line.dropFirst(9)).trimmingCharacters(in: .whitespacesAndNewlines)
-          logger.error("Authentication rejected by server. Available mechanisms: \(mechanisms)")
+          logger.debug("Authentication rejected by server. Available mechanisms: \(mechanisms)")
           context.fireErrorCaught(DBusAuthenticationError.invalidAuthCommand)
           // let mechanisms = line.split(separator: " ")
           //     .dropFirst()
 
           return
         } else {
-          logger.error(
+          logger.debug(
             "Received unexpected authentication response: \(line.trimmingCharacters(in: .whitespacesAndNewlines))"
           )
           state = .failed
@@ -211,7 +211,7 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
   /// Sends the initial NUL byte followed by the AUTH command
   /// See: https://dbus.freedesktop.org/doc/dbus-specification.html#auth-command
   internal func channelActive(context: ChannelHandlerContext) {
-    logger.info("Starting D-Bus authentication")
+    logger.debug("Starting D-Bus authentication")
 
     // Send initial NUL byte and AUTH command
     var buf = context.channel.allocator.buffer(capacity: 64)
