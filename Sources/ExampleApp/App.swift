@@ -1,5 +1,5 @@
-import DBusSwift
-import NIO
+import DBUS
+import NIOCore
 
 #if canImport(FoundationEssentials)
   import FoundationEssentials
@@ -25,145 +25,36 @@ struct App {
       try await DBusClient.withConnection(
         to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket"),
         auth: .external(userID: uid)
-      ) { replies, send in
-        try await send(
-          DBusMessage.createMethodCall(
-            destination: "org.freedesktop.DBus",
-            path: "/org/freedesktop/DBus",
-            interface: "org.freedesktop.DBus",
-            method: "Hello",
-            serial: 1
-          ))
-
-        guard let helloReply = try await replies.next() else {
-          print("No reply from Hello method call")
-          return
-        }
-
-        guard case .methodReturn = helloReply.messageType else {
-          print("Unexpected message type from Hello method call")
-          return
-        }
-
-        print("Received reply from Hello method call \(helloReply)")
-
-        print("DBus client connected as UID \(uid) with serial \(helloReply.serial)")
-
-        // try await outbound.write(DBusMessage.createMethodCall(
-        //     destination: "org.freedesktop.DBus",
-        //     path: "/org/freedesktop/DBus",
-        //     interface: "org.freedesktop.DBus",
-        //     method: "ListNames",
-        //     serial: 2
-        // ))
-
-        var serial: UInt32 = 2
-        func nextSerial() -> UInt32 {
-          defer { serial += 1 }
-          return serial
-        }
-
-        func sendRequest(
-          withSerial: (UInt32) throws -> DBusMessage
-        ) async throws -> DBusMessage {
-          print("Sending request with serial: \(serial)")
-          let serial = nextSerial()
-          let message = try withSerial(serial)
-          print("Message: \(message)")
-          try await send(message)
-          print("Wrote message")
-          while let reply = try await replies.next() {
-            print("Received reply with serial: \(reply.replyTo ?? 0)")
-            guard reply.replyTo == serial else {
-              continue
-            }
-            print("Returning reply")
-            return reply
-          }
-
-          print("No reply received")
-          throw CancellationError()
-        }
-
-        // First, get all devices from NetworkManager
-        let devicesReply = try await sendRequest { serial in
-          NetworkManager.getDevices(serial: serial)
-        }
-
-        print("\nDevices reply: \(devicesReply)")
-
-        // Extract device paths from the reply
-        guard let bodyValue = devicesReply.body.first else {
+      ) { connection in
+        guard 
+          let devicesReply = try await connection.send(NetworkManager.getDevices()),
+          let bodyValue = devicesReply.body.first,
+          let devices = bodyValue.array
+        else {
           print("No body in GetDevices reply")
           return
         }
 
-        var devicePaths: [String] = []
-        switch bodyValue {
-        case .array(let devices):
-          devicePaths = devices.compactMap { device in
-            if case .objectPath(let path) = device {
-              return path
-            } else if case .variant(let variant) = device,
-              case .objectPath(let path) = variant.value
-            {
-              return path
-            }
-            return nil
-          }
-        case .variant(let variant):
-          if case .array(let devices) = variant.value {
-            devicePaths = devices.compactMap { device in
-              if case .objectPath(let path) = device {
-                return path
-              } else if case .variant(let variant) = device,
-                case .objectPath(let path) = variant.value
-              {
-                return path
-              }
-              return nil
-            }
-          }
-        default:
-          print("Unexpected arguments from GetDevices reply: \(bodyValue)")
-          return
-        }
+        let devicePaths: [String] = devices.compactMap(\.objectPath)
 
         print("Found \(devicePaths.count) devices")
 
         // Find the Wi-Fi device by checking device type
         var wifiDevicePath: String? = nil
         for devicePath in devicePaths {
-          let deviceTypeReply = try await sendRequest { serial in
-            NetworkManager.getDeviceType(devicePath: devicePath, serial: serial)
-          }
-
-          guard let typeValue = deviceTypeReply.body.first else {
+          guard 
+            let deviceTypeReply = try await connection.send(NetworkManager.getDeviceType(devicePath: devicePath)),
+            let typeValue = deviceTypeReply.body.first,
+            let type = typeValue.uint32,
+            type == 2 // NM_DEVICE_TYPE_WIFI = 2
+          else {
             print("No body in GetDeviceType reply for device \(devicePath)")
             continue
           }
 
-          // Device type 2 is Wi-Fi (NM_DEVICE_TYPE_WIFI)
-          var deviceType: UInt32 = 0
-          switch typeValue {
-          case .uint32(let type):
-            deviceType = type
-          case .variant(let variant):
-            if case .uint32(let type) = variant.value {
-              deviceType = type
-            }
-          default:
-            print("Unexpected device type format: \(typeValue)")
-            continue
-          }
-
-          print("Device \(devicePath) has type \(deviceType)")
-
-          if deviceType == 2 {  // NM_DEVICE_TYPE_WIFI = 2
-            wifiDevicePath = devicePath
-            print("Found Wi-Fi device at \(devicePath)")
-            break
-          }
+          wifiDevicePath = devicePath
+          print("Found Wi-Fi device at \(devicePath)")
+          break
         }
 
         guard let wifiDevicePath = wifiDevicePath else {
@@ -172,124 +63,46 @@ struct App {
         }
 
         // Now use the correct Wi-Fi device path
-        let scanReply = try await sendRequest { serial in
-          NetworkManager.scanAPs(devicePath: wifiDevicePath, serial: serial)
-        }
-
-        print("\nScan reply: \(scanReply)")
-
-        guard let bodyValue = scanReply.body.first else {
+        guard 
+          let scanReply = try await connection.send(NetworkManager.scanAPs(devicePath: wifiDevicePath)),
+          let bodyValue = scanReply.body.first,
+          let aps = bodyValue.array
+        else {
           print("No body in Scan reply")
           return
         }
 
-        print("\nScan reply body type: \(type(of: bodyValue))")
-        print("\nScan reply body: \(bodyValue)")
-
-        var accessPoints: [DBusValue] = []
-        switch bodyValue {
-        case .array(let aps):
-          accessPoints = aps
-        case .variant(let variant):
-          if case .array(let aps) = variant.value {
-            accessPoints = aps
-          } else {
-            print("Unexpected variant value in Scan reply: \(variant.value)")
-            return
-          }
-        default:
-          print("Unexpected arguments from Scan reply: \(bodyValue)")
-          return
-        }
-
-        var hostnames = [(ssid: String, path: String)]()
-        for ap in accessPoints {
-          var apPath: String = ""
-
-          switch ap {
-          case .objectPath(let path):
-            apPath = path
-          case .variant(let variant):
-            if case .objectPath(let path) = variant.value {
-              apPath = path
-            } else {
-              print("Unexpected access point format: \(ap)")
-              continue
-            }
-          default:
-            print("Unexpected access point format: \(ap)")
-            continue
-          }
-
-          let apObject = try await sendRequest { serial in
-            NetworkManager.getSSID(apPath: apPath, serial: serial)
-          }
-
-          print("AP SSID response: \(apObject)")
-
-          guard let bodyValue = apObject.body.first else {
+        var networks = [(ssid: String, path: String)]()
+        for ap in aps.compactMap(\.objectPath) {
+          guard 
+            let ssidReply = try await connection.send(NetworkManager.getSSID(apPath: ap)),
+            let bodyValue = ssidReply.body.first,
+            let ssid = bodyValue.array
+          else {
             print("No body in GetSSID reply")
             continue
           }
 
-          var ssidBytes: [DBusValue] = []
-
-          switch bodyValue {
-          case .variant(let variant):
-            switch variant.value {
-            case .array(let bytes):
-              ssidBytes = bytes
-            case .variant(let nestedVariant):
-              if case .array(let bytes) = nestedVariant.value {
-                ssidBytes = bytes
-              } else {
-                print("Unexpected nested variant value in GetSSID reply: \(nestedVariant.value)")
-                continue
-              }
-            default:
-              print("Unexpected variant value in GetSSID reply: \(variant.value)")
-              continue
-            }
-          case .array(let bytes):
-            ssidBytes = bytes
-          default:
-            print("Unexpected arguments from GetSSID reply: \(bodyValue)")
-            continue
-          }
-
-          let ssid = ssidBytes.compactMap { value -> UInt8? in
-            switch value {
-            case .byte(let byte):
-              return byte
-            case .variant(let variant):
-              if case .byte(let byte) = variant.value {
-                return byte
-              }
-              return nil
-            default:
-              return nil
-            }
-          }
-
-          if let ssid = String(bytes: ssid, encoding: .utf8) {
-            hostnames.append((ssid, apPath))
+          let ssidBytes = ssid.compactMap(\.uint8)
+          if let ssidString = String(bytes: ssidBytes, encoding: .utf8) {
+            networks.append((ssid: ssidString, path: ap))
           }
         }
 
-        print(hostnames)
+        print(networks)
 
-        if let (name, path) = hostnames.first(where: { $0.ssid == "Orlandos Wifi" }) {
-          let reply = try await sendRequest { serial in
-            NetworkManager.connect(
-              networkDevicePath: wifiDevicePath,
-              apPath: path,
-              apName: name,
-              password: "",
-              serial: serial
-            )
+        if let (name, path) = networks.first(where: { $0.ssid == "<My Wifi>" }) {
+          guard let reply = try await connection.send(NetworkManager.connect(
+            networkDevicePath: wifiDevicePath,
+            apPath: path,
+            apName: name,
+            password: ""
+          )) else {
+            print("No reply from Connect method call")
+            return
           }
 
-          print(reply)
+          print("Connect reply: \(reply)")
         }
       }
     } catch {
@@ -304,28 +117,25 @@ public struct NetworkManager {
   /// Get all network devices from NetworkManager
   /// - Parameter serial: The D-Bus serial number to use
   /// - Returns: A DBusMessage for the GetDevices method
-  public static func getDevices(serial: UInt32) -> DBusMessage {
-    return DBusMessage.createMethodCall(
+  public static func getDevices() -> DBusRequest {
+    return DBusRequest.createMethodCall(
       destination: "org.freedesktop.NetworkManager",
       path: "/org/freedesktop/NetworkManager",
       interface: "org.freedesktop.NetworkManager",
       method: "GetDevices",
-      serial: serial
     )
   }
 
   /// Get the type of a network device
   /// - Parameters:
   ///   - devicePath: The object path of the device
-  ///   - serial: The D-Bus serial number to use
   /// - Returns: A DBusMessage for the Get method to get device type
-  public static func getDeviceType(devicePath: String, serial: UInt32) -> DBusMessage {
-    return DBusMessage.createMethodCall(
+  public static func getDeviceType(devicePath: String) -> DBusRequest {
+    return DBusRequest.createMethodCall(
       destination: "org.freedesktop.NetworkManager",
       path: devicePath,
       interface: "org.freedesktop.DBus.Properties",
       method: "Get",
-      serial: serial,
       body: [
         .string("org.freedesktop.NetworkManager.Device"),
         .string("DeviceType"),
@@ -336,25 +146,22 @@ public struct NetworkManager {
   /// Create a D-Bus message to request a Wi-Fi scan on a given device
   /// - Parameters:
   ///   - devicePath: The object path of the wireless device (e.g. "/org/freedesktop/NetworkManager/Devices/0")
-  ///   - serial: The D-Bus serial number to use
   /// - Returns: A DBusMessage for the Scan method
-  public static func scanAPs(devicePath: String, serial: UInt32) -> DBusMessage {
-    return DBusMessage.createMethodCall(
+  public static func scanAPs(devicePath: String) -> DBusRequest {
+    return DBusRequest.createMethodCall(
       destination: "org.freedesktop.NetworkManager",
       path: devicePath,
       interface: "org.freedesktop.NetworkManager.Device.Wireless",
-      method: "GetAllAccessPoints",
-      serial: serial
+      method: "GetAllAccessPoints"
     )
   }
 
-  public static func getSSID(apPath: String, serial: UInt32) -> DBusMessage {
-    return DBusMessage.createMethodCall(
+  public static func getSSID(apPath: String) -> DBusRequest {
+    return DBusRequest.createMethodCall(
       destination: "org.freedesktop.NetworkManager",
       path: apPath,
       interface: "org.freedesktop.DBus.Properties",
       method: "Get",
-      serial: serial,
       body: [
         DBusValue.string("org.freedesktop.NetworkManager.AccessPoint"), DBusValue.string("Ssid"),
       ]
@@ -365,15 +172,13 @@ public struct NetworkManager {
     networkDevicePath: String,
     apPath: String,
     apName: String,
-    password: String,
-    serial: UInt32
-  ) -> DBusMessage {
-    return DBusMessage.createMethodCall(
+    password: String
+  ) -> DBusRequest {
+    return DBusRequest.createMethodCall(
       destination: "org.freedesktop.NetworkManager",
       path: apPath,
       interface: "org.freedesktop.NetworkManager",
       method: "AddAndActivateConnection",
-      serial: serial,
       body: [
         .array([
           .dictionary([

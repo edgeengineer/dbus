@@ -1,9 +1,10 @@
+import Logging
 import NIO
 import NIOCore
 import NIOExtras
 import Testing
 
-@testable import DBusSwift
+@testable import DBUS
 
 @Suite
 struct DBusAuthenticationHandlerTests {
@@ -40,7 +41,8 @@ struct DBusAuthenticationHandlerTests {
     }.joined()
 
     let channel = EmbeddedChannel()
-    try DBusClient.addToPipeline(channel.pipeline, auth: .external(userID: userId))
+    try DBusClient.addToPipeline(
+      channel.pipeline, auth: .external(userID: userId))
 
     // Activate the channel
     channel.pipeline.fireChannelActive()
@@ -115,6 +117,14 @@ struct DBusAuthenticationHandlerTests {
 
   @Test func rejectedAuthentication() throws {
     let channel = EmbeddedChannel()
+
+    // Add error handler to verify the correct error is thrown
+    var capturedError: Error?
+    let errorHandler = ErrorCollector { error in
+      capturedError = error
+    }
+    try channel.pipeline.addHandler(errorHandler).wait()
+
     try DBusClient.addToPipeline(channel.pipeline, auth: .anonymous)
 
     // Activate the channel
@@ -126,7 +136,20 @@ struct DBusAuthenticationHandlerTests {
     // Send REJECTED response
     var rejectedBuffer = channel.allocator.buffer(capacity: 32)
     rejectedBuffer.writeString("REJECTED EXTERNAL DBUS_COOKIE_SHA1\r\n")
-    try channel.writeInbound(rejectedBuffer)
+
+    // This will throw an error in the handler
+    do {
+      try channel.writeInbound(rejectedBuffer)
+    } catch {
+      // Error might be thrown here too
+      capturedError = error
+    }
+
+    // Verify the correct error was caught
+    #expect(capturedError != nil, "An error should be thrown for REJECTED response")
+    if let dbusError = capturedError as? DBusAuthenticationError {
+      #expect(dbusError == .invalidAuthCommand, "Should receive invalidAuthCommand error")
+    }
 
     // No BEGIN command should be sent
     #expect(

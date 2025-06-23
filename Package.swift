@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-  name: "swift-dbus",
+  name: "DBUS",
   products: [
     .library(
-      name: "DBusSwift",
-      targets: ["DBusSwift"])
+      name: "DBUS",
+      targets: ["DBUS"])
   ],
   dependencies: [
     .package(url: "https://github.com/apple/swift-nio.git", from: "2.70.0"),
@@ -15,16 +15,16 @@ let package = Package(
   ],
   targets: [
     .target(
-      name: "DBusSwift",
+      name: "DBUS",
       dependencies: [
-        .product(name: "NIO", package: "swift-nio"),
+        .product(name: "NIOCore", package: "swift-nio"),
         .product(name: "NIOExtras", package: "swift-nio-extras"),
         .product(name: "Logging", package: "swift-log"),
       ]
     ),
-    .executableTarget(name: "ExampleApp", dependencies: ["DBusSwift"]),
+    .executableTarget(name: "ExampleApp", dependencies: ["DBUS"]),
     .testTarget(
-      name: "DBusSwiftTests",
-      dependencies: ["DBusSwift"]),
+      name: "DBUSTests",
+      dependencies: ["DBUS"]),
   ]
 )

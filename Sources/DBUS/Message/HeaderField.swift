@@ -1,7 +1,38 @@
 import NIOCore
 
+/// A header field in a D-Bus message.
+///
+/// Header fields contain metadata about D-Bus messages. Each field consists of a code identifying
+/// the type of field and a variant containing the field's value. Different message types require
+/// different header fields to be present.
+///
+/// ## Common Header Fields
+///
+/// - **Path**: The object path for method calls and signals
+/// - **Interface**: The interface name (optional for method calls, required for signals)
+/// - **Member**: The method or signal name
+/// - **Destination**: The intended recipient of the message
+/// - **Sender**: The unique name of the sending connection
+/// - **ReplySerial**: Links replies to their original method calls
+/// - **Signature**: Describes the types in the message body
+///
+/// ## Example
+/// ```swift
+/// // Creating header fields for a method call
+/// let pathField = HeaderField(
+///     code: .path,
+///     variant: DBusVariant(.objectPath("/org/example/Object"))
+/// )
+/// let methodField = HeaderField(
+///     code: .member,
+///     variant: DBusVariant(.string("DoSomething"))
+/// )
+/// ```
 public struct HeaderField: Sendable {
+  /// The type of this header field.
   public let code: HeaderField.Code
+
+  /// The value of this header field, wrapped in a variant.
   public let variant: DBusVariant
 
   init(code: HeaderField.Code, variant: DBusVariant) {

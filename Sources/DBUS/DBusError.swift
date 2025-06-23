@@ -9,5 +9,7 @@ enum DBusError: Error {
   case invalidUTF8
   case invalidSignature
   case unsupportedType
+  case missingReply
+  case unexpectedMessageType
   case truncatedBody
 }
