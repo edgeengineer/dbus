@@ -17,7 +17,7 @@ let package = Package(
     .target(
       name: "DBUS",
       dependencies: [
-        .product(name: "NIO", package: "swift-nio"),
+        .product(name: "NIOCore", package: "swift-nio"),
         .product(name: "NIOExtras", package: "swift-nio-extras"),
         .product(name: "Logging", package: "swift-log"),
       ]
