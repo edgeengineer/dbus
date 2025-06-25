@@ -58,7 +58,7 @@ public struct DBusClient: Sendable {
         logger.trace(
           "Received message from DBUS",
           metadata: [
-            "replyTo": "\(message.replyTo)"
+            "replyTo": "\(String(describing: message.replyTo))"
           ])
         if let (_, continuation) = continuations.first(where: { $0.0 == message.replyTo }) {
           continuations.removeAll(where: { $0.0 == message.replyTo })
@@ -202,7 +202,7 @@ public struct DBusClient: Sendable {
   ) async throws -> R {
     return try await withConnectionPair(to: address, auth: auth, logger: logger) { replies, send in
       var connection = Connection(send: send, logger: logger)
-      async let running = connection.run(replies: &replies)
+      async let _ = connection.run(replies: &replies)
 
       guard
         let helloReply = try await connection.send(
