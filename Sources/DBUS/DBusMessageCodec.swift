@@ -20,7 +20,7 @@ struct DBusMessageDecoder: ByteToMessageDecoder {
         "Successfully decoded D-Bus message",
         metadata: [
           "type": "\(msg.messageType)",
-          "serial": "\(msg.serial)"
+          "serial": "\(msg.serial)",
         ]
       )
       context.fireChannelRead(self.wrapInboundOut(msg))
@@ -31,9 +31,11 @@ struct DBusMessageDecoder: ByteToMessageDecoder {
       buffer.moveReaderIndex(to: index)
       return .needMoreData
     } catch {
-      logger.debug("Failed to decode D-Bus message", metadata: [
-        "error": "\(error)"
-      ])
+      logger.debug(
+        "Failed to decode D-Bus message",
+        metadata: [
+          "error": "\(error)"
+        ])
       throw error
     }
   }
@@ -49,13 +51,17 @@ struct DBusMessageEncoder: MessageToByteEncoder {
   }
 
   func encode(data: DBusMessage, out: inout ByteBuffer) throws {
-    logger.trace("Encoding D-Bus message", metadata: [
-      "type": "\(data.messageType)",
-      "serial": "\(data.serial)"
-    ])
+    logger.trace(
+      "Encoding D-Bus message",
+      metadata: [
+        "type": "\(data.messageType)",
+        "serial": "\(data.serial)",
+      ])
     data.write(to: &out)
-    logger.trace("Encoded message to bytes", metadata: [
-      "byte-size": "\(out.readableBytes)"
-    ])
+    logger.trace(
+      "Encoded message to bytes",
+      metadata: [
+        "byte-size": "\(out.readableBytes)"
+      ])
   }
 }

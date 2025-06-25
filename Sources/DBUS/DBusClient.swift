@@ -55,9 +55,11 @@ public struct DBusClient: Sendable {
 
     internal func run(replies: inout Replies) async throws {
       while let message = try await replies.next() {
-        logger.trace("Received message from DBUS", metadata: [
-          "replyTo": "\(message.replyTo)"
-        ])
+        logger.trace(
+          "Received message from DBUS",
+          metadata: [
+            "replyTo": "\(message.replyTo)"
+          ])
         if let (_, continuation) = continuations.first(where: { $0.0 == message.replyTo }) {
           continuations.removeAll(where: { $0.0 == message.replyTo })
           continuation.resume(returning: message)
@@ -69,15 +71,19 @@ public struct DBusClient: Sendable {
       let requestId = try await send.send(request)
 
       if request.flags.contains(.noReplyExpected) {
-        logger.trace("Send request that does not expect a reply", metadata: [
-          "serial": "\(requestId)"
-        ])
+        logger.trace(
+          "Send request that does not expect a reply",
+          metadata: [
+            "serial": "\(requestId)"
+          ])
         return nil
       }
 
-      logger.trace("Send request that expects a reply", metadata: [
-        "serial": "\(requestId)"
-      ])
+      logger.trace(
+        "Send request that expects a reply",
+        metadata: [
+          "serial": "\(requestId)"
+        ])
       return try await withCheckedThrowingContinuation { continuation in
         continuations.append((requestId, continuation))
       }
@@ -198,13 +204,14 @@ public struct DBusClient: Sendable {
       var connection = Connection(send: send, logger: logger)
       async let running = connection.run(replies: &replies)
 
-      guard 
-        let helloReply = try await connection.send(.createMethodCall(
-          destination: "org.freedesktop.DBus",
-          path: "/org/freedesktop/DBus",
-          interface: "org.freedesktop.DBus",
-          method: "Hello"
-        )),
+      guard
+        let helloReply = try await connection.send(
+          .createMethodCall(
+            destination: "org.freedesktop.DBus",
+            path: "/org/freedesktop/DBus",
+            interface: "org.freedesktop.DBus",
+            method: "Hello"
+          )),
         case .methodReturn = helloReply.messageType
       else {
         throw DBusError.missingReply

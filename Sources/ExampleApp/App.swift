@@ -26,7 +26,7 @@ struct App {
         to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket"),
         auth: .external(userID: uid)
       ) { connection in
-        guard 
+        guard
           let devicesReply = try await connection.send(NetworkManager.getDevices()),
           let bodyValue = devicesReply.body.first,
           let devices = bodyValue.array
@@ -42,11 +42,12 @@ struct App {
         // Find the Wi-Fi device by checking device type
         var wifiDevicePath: String? = nil
         for devicePath in devicePaths {
-          guard 
-            let deviceTypeReply = try await connection.send(NetworkManager.getDeviceType(devicePath: devicePath)),
+          guard
+            let deviceTypeReply = try await connection.send(
+              NetworkManager.getDeviceType(devicePath: devicePath)),
             let typeValue = deviceTypeReply.body.first,
             let type = typeValue.uint32,
-            type == 2 // NM_DEVICE_TYPE_WIFI = 2
+            type == 2  // NM_DEVICE_TYPE_WIFI = 2
           else {
             print("No body in GetDeviceType reply for device \(devicePath)")
             continue
@@ -63,8 +64,9 @@ struct App {
         }
 
         // Now use the correct Wi-Fi device path
-        guard 
-          let scanReply = try await connection.send(NetworkManager.scanAPs(devicePath: wifiDevicePath)),
+        guard
+          let scanReply = try await connection.send(
+            NetworkManager.scanAPs(devicePath: wifiDevicePath)),
           let bodyValue = scanReply.body.first,
           let aps = bodyValue.array
         else {
@@ -74,7 +76,7 @@ struct App {
 
         var networks = [(ssid: String, path: String)]()
         for ap in aps.compactMap(\.objectPath) {
-          guard 
+          guard
             let ssidReply = try await connection.send(NetworkManager.getSSID(apPath: ap)),
             let bodyValue = ssidReply.body.first,
             let ssid = bodyValue.array
@@ -92,12 +94,15 @@ struct App {
         print(networks)
 
         if let (name, path) = networks.first(where: { $0.ssid == "<My Wifi>" }) {
-          guard let reply = try await connection.send(NetworkManager.connect(
-            networkDevicePath: wifiDevicePath,
-            apPath: path,
-            apName: name,
-            password: ""
-          )) else {
+          guard
+            let reply = try await connection.send(
+              NetworkManager.connect(
+                networkDevicePath: wifiDevicePath,
+                apPath: path,
+                apName: name,
+                password: ""
+              ))
+          else {
             print("No reply from Connect method call")
             return
           }

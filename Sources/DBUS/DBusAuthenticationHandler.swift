@@ -161,16 +161,20 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
             context.fireChannelActive()
             context.fireChannelWritabilityChanged()
           } catch {
-            logger.debug("Failed to complete authentication setup", metadata: [
-              "error": "\(error)"
-            ])
+            logger.debug(
+              "Failed to complete authentication setup",
+              metadata: [
+                "error": "\(error)"
+              ])
             context.fireErrorCaught(error)
           }
         } else if line.starts(with: "REJECTED ") {
           let mechanisms = String(line.dropFirst(9)).trimmingCharacters(in: .whitespacesAndNewlines)
-          logger.debug("Authentication rejected by server", metadata: [
-            "available-mechanisms": "\(mechanisms)"
-          ])
+          logger.debug(
+            "Authentication rejected by server",
+            metadata: [
+              "available-mechanisms": "\(mechanisms)"
+            ])
           context.fireErrorCaught(DBusAuthenticationError.invalidAuthCommand)
           // let mechanisms = line.split(separator: " ")
           //     .dropFirst()
@@ -240,9 +244,11 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
         return hexString.count == 1 ? "0\(hexString)" : hexString
       }.joined()
       auth = "AUTH EXTERNAL \(hex)\r\n"
-      logger.debug("Using EXTERNAL authentication", metadata: [
-        "user-id": "\(userID)"
-      ])
+      logger.debug(
+        "Using EXTERNAL authentication",
+        metadata: [
+          "user-id": "\(userID)"
+        ])
     }
     buf.writeString(auth)
     logger.trace(
