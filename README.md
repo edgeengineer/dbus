@@ -186,6 +186,34 @@ DBUS maps D-Bus types to Swift types as follows:
 | Array      | a         | [DBusValue]|
 | Variant    | v         | DBusVariant|
 
+## Limitations and Missing Features
+
+While DBUS provides a solid foundation for D-Bus communication, some features are not yet implemented:
+
+### **Not Yet Implemented**
+- **Signal Subscription**: No built-in signal filtering and callback registration
+- **Service Registration**: Cannot expose Swift objects as D-Bus services  
+- **Introspection Support**: No XML parsing or automatic proxy generation
+- **Connection Pooling**: Limited to single-use connections
+- **Standard Interfaces**: No built-in support for `org.freedesktop.DBus.Properties`, `org.freedesktop.DBus.Introspectable`, etc.
+- **Bus Name Management**: No automatic name reservation or ownership monitoring
+- **Property Interface**: Basic property access only, no caching or change notifications
+- **High-Level API**: Currently requires low-level message construction
+
+### **Known Issues**
+- Empty arrays default to byte array type signature regardless of intended type
+- Complex nested dictionary structures may have parsing edge cases
+- Message serial number overflow not handled
+- Authentication handler has potential race conditions
+
+### **Planned Features**
+Future releases may include:
+- Higher-level convenience APIs
+- Signal subscription and routing
+- Service registration capabilities  
+- Introspection and proxy generation
+- Connection management improvements
+
 ## Testing
 
 DBUS includes comprehensive tests using Swift Testing. The tests are designed to run on Linux and include real-world scenarios with NetworkManager integration.
