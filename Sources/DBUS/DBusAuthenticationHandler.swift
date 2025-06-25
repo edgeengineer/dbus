@@ -15,7 +15,7 @@ extension Character {
   }
 }
 
-public struct CharacterSet {
+public struct CharacterSet: Sendable {
   let characters: Set<Character>
   
   static let whitespacesAndNewlines = CharacterSet(characters: [" ", "\t", "\n", "\r"])
