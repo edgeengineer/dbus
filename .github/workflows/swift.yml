@@ -61,11 +61,7 @@ jobs:
         args=(
           --configuration release  
         )
-
-        if [ -n "${{ matrix.swift-sdk }}" ]; then
-          args+=(--swift-sdk "${{ matrix.swift-sdk }}")
-        fi
-
+         # Run tests without the static SDK to enable code coverage
         swift test --enable-code-coverage "${args[@]}"
         
     # Generate code coverage report

@@ -1,7 +1,52 @@
+import Foundation
 import Logging
 import NIO
 import NIOCore
 import NIOExtras
+
+/// compiler directive that checks if the Darwin framework can be imported.
+/// The Darwin framework is only available on Apple platforms (macOS, iOS, iPadOS, tvOS, watchOS),
+/// so this condition effectively checks if the code is being compiled for a non-Apple platform.
+#if !canImport(Darwin)
+  // Provide CharacterSet and trimmingCharacters implementation for non-Apple platforms
+  extension Character {
+    var isWhitespaceOrNewline: Bool {
+      return self == " " || self == "\t" || self == "\n" || self == "\r"
+    }
+  }
+
+  public struct CharacterSet: Sendable {
+    let characters: Set<Character>
+
+    static let whitespacesAndNewlines = CharacterSet(characters: [" ", "\t", "\n", "\r"])
+
+    init(characters: [Character]) {
+      self.characters = Set(characters)
+    }
+
+    func contains(_ character: Character) -> Bool {
+      return characters.contains(character)
+    }
+  }
+
+  extension String {
+    func trimmingCharacters(in set: CharacterSet) -> String {
+      var result = self
+
+      // Trim leading characters
+      while !result.isEmpty, let first = result.first, set.contains(first) {
+        result.removeFirst()
+      }
+
+      // Trim trailing characters
+      while !result.isEmpty, let last = result.last, set.contains(last) {
+        result.removeLast()
+      }
+
+      return result
+    }
+  }
+#endif
 
 /// Authentication types supported for D-Bus connections.
 ///
@@ -161,16 +206,20 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
             context.fireChannelActive()
             context.fireChannelWritabilityChanged()
           } catch {
-            logger.debug("Failed to complete authentication setup", metadata: [
-              "error": "\(error)"
-            ])
+            logger.debug(
+              "Failed to complete authentication setup",
+              metadata: [
+                "error": "\(error)"
+              ])
             context.fireErrorCaught(error)
           }
         } else if line.starts(with: "REJECTED ") {
           let mechanisms = String(line.dropFirst(9)).trimmingCharacters(in: .whitespacesAndNewlines)
-          logger.debug("Authentication rejected by server", metadata: [
-            "available-mechanisms": "\(mechanisms)"
-          ])
+          logger.debug(
+            "Authentication rejected by server",
+            metadata: [
+              "available-mechanisms": "\(mechanisms)"
+            ])
           context.fireErrorCaught(DBusAuthenticationError.invalidAuthCommand)
           // let mechanisms = line.split(separator: " ")
           //     .dropFirst()
@@ -240,9 +289,11 @@ internal final class DBusAuthenticationHandler: ChannelDuplexHandler, @unchecked
         return hexString.count == 1 ? "0\(hexString)" : hexString
       }.joined()
       auth = "AUTH EXTERNAL \(hex)\r\n"
-      logger.debug("Using EXTERNAL authentication", metadata: [
-        "user-id": "\(userID)"
-      ])
+      logger.debug(
+        "Using EXTERNAL authentication",
+        metadata: [
+          "user-id": "\(userID)"
+        ])
     }
     buf.writeString(auth)
     logger.trace(
