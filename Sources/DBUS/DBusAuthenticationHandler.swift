@@ -2,9 +2,50 @@ import Logging
 import NIO
 import NIOCore
 import NIOExtras
+import Foundation
 
-#if canImport(FoundationEssentials)
-  import FoundationEssentials
+/// compiler directive that checks if the Darwin framework can be imported. 
+/// The Darwin framework is only available on Apple platforms (macOS, iOS, iPadOS, tvOS, watchOS), 
+/// so this condition effectively checks if the code is being compiled for a non-Apple platform.
+#if !canImport(Darwin)
+// Provide CharacterSet and trimmingCharacters implementation for non-Apple platforms
+extension Character {
+  var isWhitespaceOrNewline: Bool {
+    return self == " " || self == "\t" || self == "\n" || self == "\r"
+  }
+}
+
+public struct CharacterSet {
+  let characters: Set<Character>
+  
+  static let whitespacesAndNewlines = CharacterSet(characters: [" ", "\t", "\n", "\r"])
+  
+  init(characters: [Character]) {
+    self.characters = Set(characters)
+  }
+  
+  func contains(_ character: Character) -> Bool {
+    return characters.contains(character)
+  }
+}
+
+extension String {
+  func trimmingCharacters(in set: CharacterSet) -> String {
+    var result = self
+    
+    // Trim leading characters
+    while !result.isEmpty, let first = result.first, set.contains(first) {
+      result.removeFirst()
+    }
+    
+    // Trim trailing characters
+    while !result.isEmpty, let last = result.last, set.contains(last) {
+      result.removeLast()
+    }
+    
+    return result
+  }
+}
 #endif
 
 /// Authentication types supported for D-Bus connections.
