@@ -1,4 +1,4 @@
-# DBusSwift
+# DBUS
 
 
 [![Swift 6.0.0](https://img.shields.io/badge/Swift-6.0.0-orange.svg)](https://swift.org)
@@ -6,20 +6,22 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Linux](https://img.shields.io/github/actions/workflow/status/apache-edge/dbus/swift.yml?branch=main&label=Linux)](https://github.com/apache-edge/dbus/actions/workflows/swift.yml)
 
-A Swift 6 wrapper for the D-Bus C library with support for modern Swift concurrency.
+A Swift 6 D-Bus protocol implementation with SwiftNIO and modern Swift concurrency support.
 
 ## Overview
 
-DBUS is a Swift package that provides a Swift-friendly interface to D-Bus, a message bus system used for interprocess communication on Linux systems. This library enables Swift applications to communicate with system services and other applications on Linux.
+DBUS is a Swift package that provides a pure Swift implementation of the D-Bus protocol built on SwiftNIO. D-Bus is a message bus system used for interprocess communication on Linux systems. This library enables Swift applications to communicate with system services and other applications using modern Swift concurrency features.
 
 ## Features
 
-- Modern Swift 6 API with full async/await support
-- Proper memory management with automatic resource cleanup
-- Type-safe argument handling
-- Support for method calls, signals, and replies
-- Comprehensive error handling
-- Fully documented API with DocC comments
+- **Pure Swift Implementation**: No C library dependencies, built entirely on SwiftNIO
+- **Modern Swift 6 API**: Full async/await support with Swift concurrency
+- **Complete D-Bus Protocol**: Message parsing, authentication, and type system
+- **Type-Safe Interface**: Swift types mapped to D-Bus types with compile-time safety
+- **SwiftNIO Foundation**: High-performance networking with proper resource management
+- **Authentication Support**: ANONYMOUS and EXTERNAL authentication methods
+- **Comprehensive Testing**: Full test coverage with real-world scenarios
+- **Well Documented**: DocC comments and extensive usage examples
 
 ## Requirements
 
@@ -69,66 +71,67 @@ import DBUS
 
 try await DBusClient.withConnection(
     to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket"),
-    auth: .external(userID: uid)
-) { replies, send in
+    auth: .external(userID: getuid())
+) { connection in
     // You've got a DBUS connection!
 }
-// Connect to the session bus
-let sessionBus = try DBusAsync(busType: .session)
-
-// Or connect to the system bus
-let systemBus = try DBusAsync(busType: .system)
 ```
 
 ### Calling a Method
 
 ```swift
-// Call ListNames method on the D-Bus service
-let result = try await sessionBus.call(
-    destination: "org.freedesktop.DBus",
-    path: "/org/freedesktop/DBus",
-    interface: "org.freedesktop.DBus",
-    method: "ListNames"
-)
-
-// The result is an array of Any type, but we know it's an array of strings
-if let services = result.first as? [String] {
-    print("Available D-Bus services:")
-    for service in services {
-        print("- \(service)")
+try await DBusClient.withConnection(
+    to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket"),
+    auth: .external(userID: getuid())
+) { connection in
+    // Send a method call and get reply
+    let reply = try await connection.send(DBusRequest.createMethodCall(
+        destination: "org.freedesktop.DBus",
+        path: "/org/freedesktop/DBus", 
+        interface: "org.freedesktop.DBus",
+        method: "ListNames"
+    ))
+    
+    // Handle the reply
+    if let reply = reply {
+        print("Received reply: \(reply)")
     }
 }
 ```
 
-### Emitting a Signal
+### Sending a Signal
 
 ```swift
-// Emit a signal
-try await sessionBus.emitSignal(
-    path: "/org/example/Path",
-    interface: "org.example.Interface",
-    name: "ExampleSignal",
-    args: ["Hello from Swift!", 42],
-    signature: "si"
-)
+try await DBusClient.withConnection(
+    to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/session_bus_socket"),
+    auth: .external(userID: getuid())
+) { connection in
+    // Create and send a signal
+    let signal = DBusRequest.createSignal(
+        path: "/org/example/Path",
+        interface: "org.example.Interface", 
+        name: "ExampleSignal"
+    )
+    try await connection.send(signal)
+}
 ```
 
-### Calling a Method with Arguments
+### Working with D-Bus Types
 
 ```swift
-// Call GetConnectionUnixProcessID to get the PID of a connection
-let result = try await sessionBus.call(
+// D-Bus types are represented as DBusValue
+let stringValue = DBusValue.string("Hello")
+let intValue = DBusValue.uint32(42)
+let arrayValue = DBusValue.array([stringValue, intValue])
+
+// Create requests with typed arguments
+let request = DBusRequest.createMethodCall(
     destination: "org.freedesktop.DBus",
     path: "/org/freedesktop/DBus",
-    interface: "org.freedesktop.DBus",
+    interface: "org.freedesktop.DBus", 
     method: "GetConnectionUnixProcessID",
-    args: ["org.freedesktop.DBus"],
-    signature: "s"
+    body: [DBusValue.string("org.freedesktop.DBus")]
 )
-
-if let pid = result.first as? UInt32 {
-    print("The D-Bus daemon's PID is: \(pid)")
-}
 ```
 
 ### Handling Errors
@@ -137,18 +140,17 @@ if let pid = result.first as? UInt32 {
 try await DBusClient.withConnection(
     to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket"),
     auth: .external(userID: "0") // root user
-) { replies, send in
+) { connection in
     // Send request
-    try await send(DBusMessage.createMethodCall(
+    let reply = try await connection.send(DBusRequest.createMethodCall(
         destination: "org.freedesktop.DBus",
         path: "/org/freedesktop/DBus",
         interface: "org.freedesktop.DBus",
-        method: "Hello",
-        serial: 1
+        method: "Hello"
     ))
 
     guard 
-        let helloReply = try await replies.next(),
+        let helloReply = reply,
         case .methodReturn = helloReply.messageType
     else {
         print("No reply from Hello method call")
@@ -165,7 +167,7 @@ DBUS logs to [swift-log](https://github.com/swiftlang/swift-log) to help with de
 
 ## D-Bus Type Signatures
 
-DBusSwift maps D-Bus types to Swift types as follows:
+DBUS maps D-Bus types to Swift types as follows:
 
 | D-Bus Type | Signature | Swift Type |
 |------------|-----------|------------|
@@ -186,7 +188,7 @@ DBusSwift maps D-Bus types to Swift types as follows:
 
 ## Testing
 
-DBusSwift includes comprehensive tests using Swift Testing. The tests are designed to run on Linux.
+DBUS includes comprehensive tests using Swift Testing. The tests are designed to run on Linux and include real-world scenarios with NetworkManager integration.
 
 ### Running Tests
 
