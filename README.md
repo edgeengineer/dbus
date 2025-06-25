@@ -71,8 +71,8 @@ import DBUS
 
 try await DBusClient.withConnection(
     to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket"),
-    auth: .external(userID: uid)
-) { replies, send in
+    auth: .external(userID: getuid())
+) { connection in
     // You've got a DBUS connection!
 }
 ```
@@ -83,18 +83,17 @@ try await DBusClient.withConnection(
 try await DBusClient.withConnection(
     to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket"),
     auth: .external(userID: getuid())
-) { replies, send in
-    // Send a method call
-    try await send(DBusMessage.createMethodCall(
+) { connection in
+    // Send a method call and get reply
+    let reply = try await connection.send(DBusRequest.createMethodCall(
         destination: "org.freedesktop.DBus",
         path: "/org/freedesktop/DBus", 
         interface: "org.freedesktop.DBus",
-        method: "ListNames",
-        serial: 1
+        method: "ListNames"
     ))
     
     // Handle the reply
-    if let reply = try await replies.next() {
+    if let reply = reply {
         print("Received reply: \(reply)")
     }
 }
@@ -106,15 +105,14 @@ try await DBusClient.withConnection(
 try await DBusClient.withConnection(
     to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/session_bus_socket"),
     auth: .external(userID: getuid())
-) { replies, send in
+) { connection in
     // Create and send a signal
-    let signal = DBusMessage.createSignal(
+    let signal = DBusRequest.createSignal(
         path: "/org/example/Path",
         interface: "org.example.Interface", 
-        name: "ExampleSignal",
-        serial: 1
+        name: "ExampleSignal"
     )
-    try await send(signal)
+    try await connection.send(signal)
 }
 ```
 
@@ -126,15 +124,14 @@ let stringValue = DBusValue.string("Hello")
 let intValue = DBusValue.uint32(42)
 let arrayValue = DBusValue.array([stringValue, intValue])
 
-// Messages can contain typed arguments
-let message = DBusMessage.createMethodCall(
+// Create requests with typed arguments
+let request = DBusRequest.createMethodCall(
     destination: "org.freedesktop.DBus",
     path: "/org/freedesktop/DBus",
     interface: "org.freedesktop.DBus", 
     method: "GetConnectionUnixProcessID",
-    serial: 1
+    body: [DBusValue.string("org.freedesktop.DBus")]
 )
-// Arguments would be added via message body manipulation
 ```
 
 ### Handling Errors
@@ -143,18 +140,17 @@ let message = DBusMessage.createMethodCall(
 try await DBusClient.withConnection(
     to: SocketAddress(unixDomainSocketPath: "/var/run/dbus/system_bus_socket"),
     auth: .external(userID: "0") // root user
-) { replies, send in
+) { connection in
     // Send request
-    try await send(DBusMessage.createMethodCall(
+    let reply = try await connection.send(DBusRequest.createMethodCall(
         destination: "org.freedesktop.DBus",
         path: "/org/freedesktop/DBus",
         interface: "org.freedesktop.DBus",
-        method: "Hello",
-        serial: 1
+        method: "Hello"
     ))
 
     guard 
-        let helloReply = try await replies.next(),
+        let helloReply = reply,
         case .methodReturn = helloReply.messageType
     else {
         print("No reply from Hello method call")
