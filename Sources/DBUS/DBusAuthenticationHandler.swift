@@ -3,6 +3,10 @@ import NIO
 import NIOCore
 import NIOExtras
 
+#if canImport(FoundationEssentials)
+  import FoundationEssentials
+#endif
+
 /// Authentication types supported for D-Bus connections.
 ///
 /// D-Bus supports several authentication mechanisms. This library currently implements
