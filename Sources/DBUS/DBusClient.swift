@@ -198,10 +198,10 @@ public struct DBusClient: Sendable {
     to address: SocketAddress,
     auth: AuthType,
     logger: Logger = Logger(label: "dbus.client"),
-    _ handler: @Sendable @escaping (inout Connection) async throws -> R
+    _ handler: @Sendable @escaping (Connection) async throws -> R
   ) async throws -> R {
     return try await withConnectionPair(to: address, auth: auth, logger: logger) { replies, send in
-      var connection = Connection(send: send, logger: logger)
+      let connection = Connection(send: send, logger: logger)
       async let _ = connection.run(replies: &replies)
 
       guard
@@ -217,7 +217,7 @@ public struct DBusClient: Sendable {
         throw DBusError.missingReply
       }
 
-      return try await handler(&connection)
+      return try await handler(connection)
     }
   }
 
