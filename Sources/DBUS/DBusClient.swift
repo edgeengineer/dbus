@@ -33,9 +33,14 @@ import NIOExtras
 /// }
 /// ```
 @available(macOS 10.15, iOS 13, *)
-public struct DBusClient: Sendable {
+public actor DBusClient: Sendable {
   private let group: EventLoopGroup
   private let asyncChannel: NIOAsyncChannel<DBusMessage, DBusMessage>
+
+  internal init(group: EventLoopGroup, asyncChannel: NIOAsyncChannel<DBusMessage, DBusMessage>) {
+    self.group = group
+    self.asyncChannel = asyncChannel
+  }
 
   public actor Connection: Sendable {
     public private(set) var send: Send
