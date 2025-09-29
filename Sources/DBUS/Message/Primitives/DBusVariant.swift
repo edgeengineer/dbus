@@ -77,9 +77,6 @@ extension DBusVariant {
   ///
   /// - SeeAlso: [D-Bus Marshalling - Variant Type](https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-variant)
   func write(to buffer: inout ByteBuffer, byteOrder: Endianness) {
-    // Record start position for debugging
-    let _ = buffer.writerIndex
-
     // Write the signature
     buffer.writeInteger(UInt8(signature.utf8.count))
     buffer.writeBytes(Array(signature.utf8))
