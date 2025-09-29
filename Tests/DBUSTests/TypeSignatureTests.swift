@@ -293,11 +293,11 @@ extension DBusType: Equatable {
       (.unixFd, .unixFd),
       (.variant, .variant):
       return true
-    case let (.array(lelem), .array(relem)):
+    case (.array(let lelem), .array(let relem)):
       return lelem == relem
-    case let (.dictEntry(lkey, lval), .dictEntry(rkey, rval)):
+    case (.dictEntry(let lkey, let lval), .dictEntry(let rkey, let rval)):
       return lkey == rkey && lval == rval
-    case let (.structure(lelems), .structure(relems)):
+    case (.structure(let lelems), .structure(let relems)):
       return lelems == relems
     default:
       return false
@@ -318,7 +318,7 @@ extension DBusTypeSignature.Error: Equatable {
       (.emptyStruct, .emptyStruct),
       (.invalidDictKey, .invalidDictKey):
       return true
-    case let (.invalidTypeChar(lc), .invalidTypeChar(rc)):
+    case (.invalidTypeChar(let lc), .invalidTypeChar(let rc)):
       return lc == rc
     default:
       return false

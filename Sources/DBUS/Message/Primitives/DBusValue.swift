@@ -80,16 +80,16 @@ public indirect enum DBusValue: Hashable, Sendable {
     case "b", "i", "u", "s", "o", "g", "h": return 4
     case "x", "t", "d": return 8  // INT64, UINT64, DOUBLE
     case "a":
-        guard typeSignature.count >= 2 else {
-            return 1 // Invalid
-        }
-        
-        let secondIndex = typeSignature.index(after: typeSignature.startIndex)
-        if typeSignature[secondIndex] == "{" {
-            return 8  // DICT_ENTRY
-        } else {
-            return 4  // ARRAY
-        }
+      guard typeSignature.count >= 2 else {
+        return 1  // Invalid
+      }
+
+      let secondIndex = typeSignature.index(after: typeSignature.startIndex)
+      if typeSignature[secondIndex] == "{" {
+        return 8  // DICT_ENTRY
+      } else {
+        return 4  // ARRAY
+      }
     case "(": return 8  // STRUCT
     case "{": return 8  // DICT_ENTRY
     case "v": return 1  // VARIANT (signature is 1, value is aligned as per type)
