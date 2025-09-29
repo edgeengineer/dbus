@@ -19,14 +19,14 @@ extension ByteBuffer {
     }
   }
 
-  mutating func requireInteger<T: FixedWidthInteger>(endianness: Endianness = .little) throws -> T {
+  mutating func requireInteger<T: FixedWidthInteger>(endianness: Endianness) throws -> T {
     guard let value: T = self.readInteger(endianness: endianness) else {
       throw DBusError.invalidHeader
     }
     return value
   }
 
-  mutating func requireDouble(endianness: Endianness = .little) throws -> Double {
+  mutating func requireDouble(endianness: Endianness) throws -> Double {
     guard
       let value: UInt64 = self.readInteger(endianness: endianness)
     else {

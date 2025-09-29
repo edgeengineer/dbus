@@ -108,7 +108,7 @@ public indirect enum DBusValue: Hashable, Sendable {
     let alignment = alignment(for: typeSignature)
     buffer.alignReader(to: alignment)
     switch typeChar {
-    case "y": return .byte(try buffer.requireInteger())
+    case "y": return .byte(try buffer.requireInteger(endianness: byteOrder))
     case "b":
       // Boolean is a 32-bit integer with value 0 or 1, align to 4 bytes
       buffer.alignReader(to: 4)

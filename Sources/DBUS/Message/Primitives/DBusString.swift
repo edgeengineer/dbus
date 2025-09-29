@@ -148,7 +148,7 @@ struct DBusString {
       throw DBusError.invalidSignature
     }
 
-    let length = try buffer.requireInteger() as UInt8
+    let length = try buffer.requireInteger(endianness: byteOrder) as UInt8
 
     // Check if we have enough bytes for the signature data plus null terminator
     guard buffer.readableBytes >= Int(length) + 1 else {
