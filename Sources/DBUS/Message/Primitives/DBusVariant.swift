@@ -42,9 +42,6 @@ public struct DBusVariant: Sendable, Hashable {
   ///
   /// - Throws: If the marshalled data cannot be parsed correctly
   init(from buffer: inout ByteBuffer, byteOrder: Endianness) throws {
-    // Save initial position for debugging
-    let _ = buffer.readerIndex
-
     // Read the signature
     guard buffer.readableBytes >= 1 else {
       throw DBusError.invalidSignature
