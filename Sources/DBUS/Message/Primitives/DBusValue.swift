@@ -649,7 +649,7 @@ extension DBusValue {
         f.write(to: &buffer, byteOrder: byteOrder)
       }
     case .dictionary(let dict):
-      buffer.alignWriter(to: 4)
+      buffer.alignWriter(to: 8)
       let start = buffer.writerIndex
       buffer.writeInteger(UInt32(0), endianness: byteOrder)  // Placeholder for length
 
