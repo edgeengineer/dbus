@@ -172,7 +172,7 @@ public struct DBusMessage: Sendable {
     case .byte:
       return .byte(try buffer.requireInteger(endianness: byteOrder))
     case .boolean:
-      return .boolean(try buffer.requireInteger(endianness: byteOrder) != 0)
+      return .boolean(try buffer.requireInteger(endianness: byteOrder) != 0 as UInt8)
     case .int16:
       return .int16(try buffer.requireInteger(endianness: byteOrder))
     case .uint16:
