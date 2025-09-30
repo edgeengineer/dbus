@@ -42,9 +42,6 @@ public struct DBusVariant: Sendable, Hashable {
   ///
   /// - Throws: If the marshalled data cannot be parsed correctly
   init(from buffer: inout ByteBuffer, byteOrder: Endianness) throws {
-    // Save initial position for debugging
-    let _ = buffer.readerIndex
-
     // Read the signature
     guard buffer.readableBytes >= 1 else {
       throw DBusError.invalidSignature
@@ -80,9 +77,6 @@ extension DBusVariant {
   ///
   /// - SeeAlso: [D-Bus Marshalling - Variant Type](https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-variant)
   func write(to buffer: inout ByteBuffer, byteOrder: Endianness) {
-    // Record start position for debugging
-    let _ = buffer.writerIndex
-
     // Write the signature
     buffer.writeInteger(UInt8(signature.utf8.count))
     buffer.writeBytes(Array(signature.utf8))

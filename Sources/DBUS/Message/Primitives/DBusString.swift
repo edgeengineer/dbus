@@ -47,13 +47,6 @@ struct DBusString {
       throw DBusError.invalidString
     }
 
-    // Ensure the length is reasonable compared to buffer size
-    guard length <= 65535, length <= UInt32(buffer.readableBytes) else {
-      // Reset buffer position on error
-      buffer.moveReaderIndex(to: originalPosition)
-      throw DBusError.invalidString
-    }
-
     // Check if we have enough bytes for the string data plus null terminator
     guard buffer.readableBytes >= Int(length) + 1 else {
       // Reset buffer position on error
@@ -148,7 +141,7 @@ struct DBusString {
       throw DBusError.invalidSignature
     }
 
-    let length = try buffer.requireInteger() as UInt8
+    let length = try buffer.requireInteger(endianness: byteOrder) as UInt8
 
     // Check if we have enough bytes for the signature data plus null terminator
     guard buffer.readableBytes >= Int(length) + 1 else {

@@ -79,7 +79,17 @@ public indirect enum DBusValue: Hashable, Sendable {
     // BOOLEAN, INT32, UINT32, STRING, OBJECT_PATH, SIGNATURE, UNIX_FD
     case "b", "i", "u", "s", "o", "g", "h": return 4
     case "x", "t", "d": return 8  // INT64, UINT64, DOUBLE
-    case "a": return 4  // ARRAY
+    case "a":
+      guard typeSignature.count >= 2 else {
+        return 1  // Invalid
+      }
+
+      let secondIndex = typeSignature.index(after: typeSignature.startIndex)
+      if typeSignature[secondIndex] == "{" {
+        return 8  // DICT_ENTRY
+      } else {
+        return 4  // ARRAY
+      }
     case "(": return 8  // STRUCT
     case "{": return 8  // DICT_ENTRY
     case "v": return 1  // VARIANT (signature is 1, value is aligned as per type)
@@ -108,7 +118,7 @@ public indirect enum DBusValue: Hashable, Sendable {
     let alignment = alignment(for: typeSignature)
     buffer.alignReader(to: alignment)
     switch typeChar {
-    case "y": return .byte(try buffer.requireInteger())
+    case "y": return .byte(try buffer.requireInteger(endianness: byteOrder))
     case "b":
       // Boolean is a 32-bit integer with value 0 or 1, align to 4 bytes
       buffer.alignReader(to: 4)
@@ -140,9 +150,6 @@ public indirect enum DBusValue: Hashable, Sendable {
           return .array([])
         }
       }
-
-      // Store the current position to track how much we've read
-      let _ = buffer.readerIndex
 
       // Align the buffer to the element's alignment
       buffer.alignReader(to: Self.alignment(for: elementSig))
@@ -649,7 +656,7 @@ extension DBusValue {
         f.write(to: &buffer, byteOrder: byteOrder)
       }
     case .dictionary(let dict):
-      buffer.alignWriter(to: 4)
+      buffer.alignWriter(to: 8)
       let start = buffer.writerIndex
       buffer.writeInteger(UInt32(0), endianness: byteOrder)  // Placeholder for length
 
