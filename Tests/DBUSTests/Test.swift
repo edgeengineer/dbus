@@ -47,7 +47,7 @@ struct MessageTests {
         _ = try DBusMessage(from: &buffer)
     }
 
-  @Test func decodeBooleanMessage() throws {
+  @Test func decodeBooleanMessage2() throws {
     let bytes: [UInt8] = [
       108, 2, 1, 1, 4, 0, 0, 0, 3, 0, 0, 0, 61, 0, 0, 0, 6, 1, 115, 0, 5, 0, 0, 0, 58, 49, 46, 49,
       48, 0, 0, 0, 5, 1, 117, 0, 2, 0, 0, 0, 8, 1, 103, 0, 1, 98, 0, 0, 7, 1, 115, 0, 20, 0, 0, 0,
