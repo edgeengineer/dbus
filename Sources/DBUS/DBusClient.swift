@@ -68,11 +68,11 @@ public actor DBusClient: Sendable {
         if let (_, continuation) = continuations.first(where: { $0.0 == message.replyTo }) {
           continuations.removeAll(where: { $0.0 == message.replyTo })
           continuation.resume(returning: message)
-        } else {
+        } else if let replyTo = message.replyTo {
           logger.warning(
             "Received message with unknown reply-to",
             metadata: [
-              "replyTo": "\(String(describing: message.replyTo))"
+              "reply-to": "\(String(describing: replyTo))"
             ])
         }
       }
