@@ -11,10 +11,10 @@ struct DBusMessageDecoder: ByteToMessageDecoder {
   }
 
   func decode(context: ChannelHandlerContext, buffer: inout ByteBuffer) throws -> DecodingState {
+    buffer.discardReadBytes()
     logger.trace("Decoding message from buffer with \(buffer.readableBytes) bytes")
     let index = buffer.readerIndex
     do {
-      buffer.discardReadBytes()
       let msg = try DBusMessage(from: &buffer)
       logger.trace(
         "Successfully decoded D-Bus message",
@@ -31,12 +31,21 @@ struct DBusMessageDecoder: ByteToMessageDecoder {
       buffer.moveReaderIndex(to: index)
       return .needMoreData
     } catch {
+      buffer.moveReaderIndex(to: index)
       logger.debug(
         "Failed to decode D-Bus message",
         metadata: [
           "error": "\(error)"
         ])
-      throw error
+      #if DEBUG
+        struct InvalidMessageError: Error {
+            let bytes: [UInt8]
+        }
+        
+        throw InvalidMessageError(bytes: Array(buffer: buffer))
+      #else
+        throw error
+      #endif
     }
   }
 }
